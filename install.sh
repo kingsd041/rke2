@@ -37,7 +37,10 @@ fi
 #     Installation prefix when using the tar installation method.
 #     Default is /usr/local, unless /usr/local is read-only or has a dedicated mount point,
 #     in which case /opt/rke2 is used instead.
-
+#
+#   - INSTALL_RKE2_GITHUB_URL
+#     Download the URL of the RKE2 release file.
+#     Defaults is 'https://github.com/rancher/rke2'.
 DEFAULT_TAR_PREFIX=/usr/local
 
 # info logs the given argument at info log level.
@@ -73,7 +76,13 @@ check_target_ro() {
 
 # setup_env defines needed environment variables.
 setup_env() {
-    INSTALL_RKE2_GITHUB_URL="https://github.com/rancher/rke2"
+    
+    # --- make sure install url has a value
+    INSTALL_RKE2_GITHUB_URL= xxxx 
+    if [ -z "${INSTALL_RKE2_GITHUB_URL}" ]; then
+        INSTALL_RKE2_GITHUB_URL="https://github.com/rancher/rke2"
+    fi
+
     # --- bail if we are not root ---
     if [ ! $(id -u) -eq 0 ]; then
         fatal "You need to be root to perform this install"
