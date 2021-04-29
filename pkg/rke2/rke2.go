@@ -26,14 +26,12 @@ import (
 )
 
 type Config struct {
-	CloudProviderName   string
-	CloudProviderConfig string
 	AuditPolicyFile     string
-	KubeletPath         string
+	CloudProviderConfig string
+	CloudProviderName   string
 	Images              images.ImageOverrideConfig
+	KubeletPath         string
 }
-
-var cisMode bool
 
 const (
 	CISProfile15           = "cis-1.5"
@@ -58,10 +56,11 @@ func Server(clx *cli.Context, cfg Config) error {
 			return err
 		}
 	}
+	cisMode := isCISMode(clx)
 
 	cmds.ServerConfig.StartupHooks = append(cmds.ServerConfig.StartupHooks,
-		setPSPs(),
-		setNetworkPolicies(),
+		setPSPs(cisMode),
+		setNetworkPolicies(cisMode),
 		setClusterRoles(),
 	)
 
@@ -87,10 +86,7 @@ func EtcdSnapshot(clx *cli.Context, cfg Config) error {
 }
 
 func setup(clx *cli.Context, cfg Config) error {
-	profile := clx.String("profile")
-	cisMode = profile == CISProfile15 || profile == CISProfile16
 	dataDir := clx.String("data-dir")
-	privateRegistry := clx.String("private-registry")
 	disableETCD := clx.Bool("disable-etcd")
 
 	auditPolicyFile := clx.String("audit-policy-file")
@@ -118,7 +114,7 @@ func setup(clx *cli.Context, cfg Config) error {
 		clx.Set("airgap-extra-registry", cfg.Images.SystemDefaultRegistry)
 	}
 
-	execPath, err := bootstrap.Stage(dataDir, privateRegistry, resolver)
+	execPath, err := bootstrap.Stage(clx, resolver)
 	if err != nil {
 		return err
 	}
@@ -157,7 +153,7 @@ func setup(clx *cli.Context, cfg Config) error {
 		Resolver:        resolver,
 		ImagesDir:       agentImagesDir,
 		ManifestsDir:    agentManifestsDir,
-		CISMode:         cisMode,
+		CISMode:         isCISMode(clx),
 		CloudProvider:   cpConfig,
 		DataDir:         dataDir,
 		AuditPolicyFile: auditPolicyFile,
@@ -167,4 +163,9 @@ func setup(clx *cli.Context, cfg Config) error {
 	executor.Set(&sp)
 
 	return nil
+}
+
+func isCISMode(clx *cli.Context) bool {
+	profile := clx.String("profile")
+	return profile == CISProfile15 || profile == CISProfile16
 }
