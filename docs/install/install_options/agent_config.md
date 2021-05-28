@@ -1,12 +1,12 @@
 ---
-title: Agent Configuration Reference
+title: Agent 配置参考
 ---
 
-This is a reference to all parameters that can be used to configure the rke2 agent. Note that while this is a reference to the command line arguments, the best way to configure RKE2 is using the [configuration file](install_options.md#configuration-file).
+这是对所有可用于配置 rke2 agent 的参数的参考。请注意，虽然这是命令行参数的参考，但配置 RKE2 的最佳方式是使用[配置文件](install_options.md#configuration-file)。
 
-### RKE2 Agent CLI Help
+### RKE2 Agent CLI 帮助
 
-> If an option appears in brackets below, for example `[$RKE2_URL]`, it means that the option can be passed in as an environment variable of that name.
+> 如果一个选项出现在下面的括号里，例如`[$RKE2_URL]`，这意味着该选项可以作为该名称的环境变量传入。
 
 ```console
 NAME:
@@ -16,35 +16,35 @@ USAGE:
    rke2 agent [OPTIONS]
 
 OPTIONS:
-   --config FILE, -c FILE                 (config) Load configuration from FILE (default: "/etc/rancher/rke2/config.yaml") [$RKE2_CONFIG_FILE]
-   --debug                                (logging) Turn on debug logs [$RKE2_DEBUG]
-   --token value, -t value                (cluster) Token to use for authentication [$RKE2_TOKEN]
-   --token-file value                     (cluster) Token file to use for authentication [$RKE2_TOKEN_FILE]
-   --server value, -s value               (cluster) Server to connect to [$RKE2_URL]
-   --data-dir value, -d value             (data) Folder to hold state (default: "/var/lib/rancher/rke2")
-   --node-name value                      (agent/node) Node name [$RKE2_NODE_NAME]
-   --node-label value                     (agent/node) Registering and starting kubelet with set of labels
-   --node-taint value                     (agent/node) Registering kubelet with set of taints
-   --container-runtime-endpoint value     (agent/runtime) Disable embedded containerd and use alternative CRI implementation
-   --snapshotter value                    (agent/runtime) Override default containerd snapshotter (default: "overlayfs")
-   --private-registry value               (agent/runtime) Private registry configuration file (default: "/etc/rancher/rke2/registries.yaml")
-   --node-ip value, -i value              (agent/networking) IPv4/IPv6 addresses to advertise for node
-   --node-external-ip value               (agent/networking) IPv4/IPv6 external IP addresses to advertise for node
-   --resolv-conf value                    (agent/networking) Kubelet resolv.conf file [$RKE2_RESOLV_CONF]
-   --kubelet-arg value                    (agent/flags) Customized flag for kubelet process
-   --protect-kernel-defaults              (agent/node) Kernel tuning behavior. If set, error if kernel tunables are different than kubelet defaults.
-   --selinux                              (agent/node) Enable SELinux in containerd [$RKE2_SELINUX]
-   --lb-server-port value                 (agent/node) Local port for supervisor client load-balancer. If the supervisor and apiserver are not colocated an additional port 1 less than this port will also be used for the apiserver client load-balancer. (default: 6444) [$RKE2_LB_SERVER_PORT]
-   --system-default-registry value        (image) Private registry to be used for all system Docker images [$RKE2_SYSTEM_DEFAULT_REGISTRY]
-   --kube-apiserver-image value           (image) Override image to use for kube-apiserver [$RKE2_KUBE_APISERVER_IMAGE]
-   --kube-controller-manager-image value  (image) Override image to use for kube-controller-manager [$RKE2_KUBE_CONTROLLER_MANAGER_IMAGE]
-   --kube-scheduler-image value           (image) Override image to use for kube-scheduler [$RKE2_KUBE_SCHEDULER_IMAGE]
-   --pause-image value                    (image) Override image to use for pause [$RKE2_PAUSE_IMAGE]
-   --runtime-image value                  (image) Override image to use for runtime binaries (containerd, kubectl, crictl, etc) [$RKE2_RUNTIME_IMAGE]
-   --etcd-image value                     (image) Override image to use for etcd [$RKE2_ETCD_IMAGE]
-   --kubelet-path value                   (experimental/agent) Override kubelet binary path [$RKE2_KUBELET_PATH]
-   --cloud-provider-name value            (cloud provider) Cloud provider name [$RKE2_CLOUD_PROVIDER_NAME]
-   --cloud-provider-config value          (cloud provider) Cloud provider configuration file path [$RKE2_CLOUD_PROVIDER_CONFIG]
-   --profile value                        (security) Validate system configuration against the selected benchmark (valid items: cis-1.5, cis-1.6 ) [$RKE2_CIS_PROFILE]
-   --audit-policy-file value              (security) Path to the file that defines the audit policy configuration [$RKE2_AUDIT_POLICY_FILE]
+   --config FILE, -c FILE                 (config) 从FILE加载配置 (默认: "/etc/rancher/rke2/config.yaml") [$RKE2_CONFIG_FILE]
+   --debug                                (logging) 开启调试日志 [$RKE2_DEBUG]
+   --token value, -t value                (cluster) 用于认证的token [$RKE2_TOKEN]
+   --token-file value                     (cluster) 用于认证的token文件 [$RKE2_TOKEN_FILE]
+   --server value, -s value               (cluster) 要连接的server [$RKE2_URL]
+   --data-dir value, -d value             (data) 数据目录 (默认: "/var/lib/rancher/rke2")
+   --node-name value                      (agent/node) 节点名称 [$RKE2_NODE_NAME]
+   --node-label value                     (agent/node) 节点标签
+   --node-taint value                     (agent/node) 节点污点
+   --container-runtime-endpoint value     (agent/runtime) 禁用嵌入式containerd并使用替代的CRI实现
+   --snapshotter value                    (agent/runtime) 覆盖默认的containerd snapshotter (默认: "overlayfs")
+   --private-registry value               (agent/runtime) 私有注册表配置文件 (默认: "/etc/rancher/rke2/registries.yaml")
+   --node-ip value, -i value              (agent/networking) 为节点公布的IPv4/IPv6地址
+   --node-external-ip value               (agent/networking) 为节点公布的IPv4/IPv6外部IP地址
+   --resolv-conf value                    (agent/networking) Kubelet resolv.conf 文件 [$RKE2_RESOLV_CONF]
+   --kubelet-arg value                    (agent/flags) kubelet 进程的自定义标志
+   --protect-kernel-defaults              (agent/node) 内核调整行为。如果设置，如果内核调谐与kubelet默认值不同，则会出现错误。
+   --selinux                              (agent/node) 在containerd中启用SELinux [$RKE2_SELINUX]
+   --lb-server-port value                 (agent/node) Supervisor客户端负载均衡器的本地端口。如果supervisor 和apiserver不在同一地点，则apiserver客户端负载均衡器也将使用比该端口少1的额外端口. (默认: 6444) [$RKE2_LB_SERVER_PORT]
+   --system-default-registry value        (image) 用于所有系统Docker镜像的私有注册表 [$RKE2_SYSTEM_DEFAULT_REGISTRY]
+   --kube-apiserver-image value           (image) 覆盖kube-apiserver使用的镜像 [$RKE2_KUBE_APISERVER_IMAGE]
+   --kube-controller-manager-image value  (image) 覆盖kube-controller-manager使用的镜像 [$RKE2_KUBE_CONTROLLER_MANAGER_IMAGE]
+   --kube-scheduler-image value           (image) 覆盖kube-scheduler使用的镜像 [$RKE2_KUBE_SCHEDULER_IMAGE]
+   --pause-image value                    (image) 覆盖pause使用的镜像 [$RKE2_PAUSE_IMAGE]
+   --runtime-image value                  (image) 覆盖用于运行时二进制文件的镜像 (containerd, kubectl, crictl, etc) [$RKE2_RUNTIME_IMAGE]
+   --etcd-image value                     (image) 覆盖用于etcd的镜像 [$RKE2_ETCD_IMAGE]
+   --kubelet-path value                   (experimental/agent) 覆盖kubelet的二进制路径 [$RKE2_KUBELET_PATH]
+   --cloud-provider-name value            (cloud provider) Cloud provider 名称 [$RKE2_CLOUD_PROVIDER_NAME]
+   --cloud-provider-config value          (cloud provider) Cloud provider 配置文件目录 [$RKE2_CLOUD_PROVIDER_CONFIG]
+   --profile value                        (security) 根据选定的基准验证系统配置 (有效项目: cis-1.5, cis-1.6 ) [$RKE2_CIS_PROFILE]
+   --audit-policy-file value              (security) 定义审计策略配置的文件的路径 [$RKE2_AUDIT_POLICY_FILE]
 ```

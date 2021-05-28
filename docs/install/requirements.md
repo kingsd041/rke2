@@ -1,54 +1,54 @@
-RKE2 is very lightweight, but has some minimum requirements as outlined below.
+RKE2 非常轻便，但有一些最低要求，如下所述。
 
-## Prerequisites
+## 先决条件
 
-Two nodes cannot have the same hostname.
+两个节点不能有相同的主机名。
 
-If all your nodes have the same hostname, set the `node-name` parameter in the RKE2 config file for each node you add to the cluster to have a different node name.
+如果你的所有节点都有相同的主机名，请在 RKE2 配置文件中设置 `node-name` 参数，让你添加到集群中的每个节点都有不同的节点名。
 
-## Operating Systems
+## 操作系统
 
-RKE2 has been tested and validated on the following operating systems and their subsequent non-major releases:
+RKE2 已经在以下操作系统及其后续非主要版本上进行了测试和验证：
 
-*    Ubuntu 18.04 (amd64)
-*    Ubuntu 20.04 (amd64)
-*    CentOS/RHEL 7.8 (amd64)
-*    CentOS/RHEL 8.2 (amd64)
-*    SLES 15 SP2 (amd64) (v1.18.16+rke2r1 and newer)
+- Ubuntu 18.04 (amd64)
+- Ubuntu 20.04 (amd64)
+- CentOS/RHEL 7.8 (amd64)
+- CentOS/RHEL 8.2 (amd64)
+- SLES 15 SP2 (amd64) (v1.18.16+rke2r1 和更新版本)
 
-## Hardware
+## 硬件
 
-Hardware requirements scale based on the size of your deployments. Minimum recommendations are outlined here.
+硬件要求根据你的部署规模而扩展。这里列出了最低建议：
 
-*    RAM: 512MB Minimum (we recommend at least 1GB)
-*    CPU: 1 Minimum
+- 内存：最低 512MB（我们建议至少 1GB）。
+- CPU：最低 1 个
 
-#### Disks
+#### 磁盘
 
-RKE2 performance depends on the performance of the database, and since RKE2 runs etcd embeddedly and it stores the data dir on disk, we recommend using an SSD when possible to ensure optimal performance.
+RKE2 的性能取决于数据库的性能，由于 RKE2 以嵌入式方式运行 etcd，并将数据目录存储在磁盘上，我们建议尽可能使用 SSD 以确保最佳性能。
 
-## Networking
+## 联网
 
-**Important:** If your node has NetworkManager installed and enabled, [ensure that it is configured to ignore CNI-managed interfaces.](https://docs.rke2.io/known_issues/#networkmanager)
+**重要的是：** 如果你的节点安装并启用了 NetworkManager，[确保它被配置为忽略 CNI 管理的接口。](https://docs.rke2.io/known_issues/#networkmanager)
 
-The RKE2 server needs port 6443 and 9345 to be accessible by other nodes in the cluster.
+RKE2 server 需要 6443 和 9345 端口，以便被集群中的其他节点访问。
 
-All nodes need to be able to reach other nodes over UDP port 8472 when Flannel VXLAN is used.
+当使用 Flannel VXLAN 时，所有节点都需要能够通过 UDP 端口 8472 到达其他节点。
 
-If you wish to utilize the metrics server, you will need to open port 10250 on each node.
+如果你想使用 metrics server，你将需要在每个节点上打开 10250 端口。
 
-**Important:** The VXLAN port on nodes should not be exposed to the world as it opens up your cluster network to be accessed by anyone. Run your nodes behind a firewall/security group that disables access to port 8472.
+**重要说明：** 节点上的 VXLAN 端口不应该暴露给外界，因为它将你的集群网络开放给任何人访问。在禁止访问端口 8472 的防火墙/安全组后面运行节点。
 
-<figcaption>Inbound Rules for RKE2 Server Nodes</figcaption>
+RKE2 server 节点的入站规则
 
-| Protocol | Port | Source | Description
-|-----|-----|----------------|---|
-| TCP | 9345 | RKE2 agent nodes | Kubernetes API
-| TCP | 6443 | RKE2 agent nodes | Kubernetes API
-| UDP | 8472 | RKE2 server and agent nodes | Required only for Flannel VXLAN
-| TCP | 10250 | RKE2 server and agent nodes | kubelet
-| TCP | 2379 | RKE2 server nodes | etcd client port
-| TCP | 2380 | RKE2 server nodes | etcd peer port
-| TCP | 30000-32767 | RKE2 server and agent nodes | NodePort port range
+| 协议 | 端口        | 来源                       | 描述                     |
+| ---- | ----------- | -------------------------- | ------------------------ |
+| TCP  | 9345        | RKE2 agent 节点            | Kubernetes API           |
+| TCP  | 6443        | RKE2 agent 节点            | Kubernetes API           |
+| UDP  | 8472        | RKE2 server and agent 节点 | 仅要求用于 Flannel VXLAN |
+| TCP  | 10250       | RKE2 server 和 agent 节点  | kubelet                  |
+| TCP  | 2379        | RKE2 server 节点           | etcd client port         |
+| TCP  | 2380        | RKE2 server 节点           | etcd peer port           |
+| TCP  | 30000-32767 | RKE2 server 和 agent 节点  | NodePort 端口范围        |
 
-Typically all outbound traffic is allowed.
+通常情况下，所有出站流量都是允许的。

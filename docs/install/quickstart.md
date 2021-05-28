@@ -2,84 +2,100 @@
 title: Quick Start
 ---
 
-This guide will help you quickly launch a cluster with default options.
+本指南将帮助你用默认选项快速启动一个集群。
 
-> New to Kubernetes? The official Kubernetes docs already have some great tutorials outlining the basics [here](https://kubernetes.io/docs/tutorials/kubernetes-basics/).
+> 刚接触 Kubernetes？Kubernetes 官方文档已经有一些很好的教程，[这里](https://kubernetes.io/docs/tutorials/kubernetes-basics/)概述了基础知识。
 
-### Prerequisites
+### 先决条件
 
-Make sure your environment fulfills the [requirements.](https://docs.rke2.io/install/requirements/)
-If NetworkManager is installed and enabled on your hosts, [ensure that it is configured to ignore CNI-managed interfaces.](https://docs.rke2.io/known_issues/#networkmanager)
+请确保你的环境满足[要求](https://docs.rke2.io/install/requirements/)。如果在主机上安装并启用了 NetworkManager，[确保它被配置为忽略 CNI 管理的接口](https://docs.rke2.io/known_issues/#networkmanager)。
 
-### Server Node Installation
---------------
-RKE2 provides an installation script that is a convenient way to install it as a service on systemd based systems. This script is available at https://get.rke2.io. To install RKE2 using this method do the following:
+### Server 节点安装
 
-#### 1. Run the installer
+---
+
+RKE2 提供了一个安装脚本，这是一个在基于 systemd 的系统上将其作为服务安装的便捷方式。这个脚本可以从https://get.rke2.io获得。使要使用此方法安装RKE2，请执行以下操作：
+
+#### 1. 运行安装程序
+
 ```
 curl -sfL https://get.rke2.io | sh -
 ```
-This will install the `rke2-server` service and the `rke2` binary onto your machine.
 
-#### 2. Enable the rke2-server service
+这将在你的机器上安装`rke2-server`服务和`rke2`二进制文件。
+
+#### 2. 启用 rke2-server 服务
+
 ```
 systemctl enable rke2-server.service
 ```
 
-#### 3. Start the service
+#### 3. 启动服务
+
 ```
 systemctl start rke2-server.service
 ```
 
-#### 4. Follow the logs, if you like
+#### 4. 如果你愿意，可以关注一下日志
+
 ```
 journalctl -u rke2-server -f
 ```
 
-After running this installation:
+运行此安装程序后：
 
-* The `rke2-server` service will be installed. The `rke2-server` service will be configured to automatically restart after node reboots or if the process crashes or is killed.
-* Additional utilities will be installed at `/var/lib/rancher/rke2/bin/`. They include: `kubectl`, `crictl`, and `ctr`. Note that these are not on your path by default.
-* Two cleanup scripts will be installed to the path at `/usr/local/bin/rke2`. They are: `rke2-killall.sh` and `rke2-uninstall.sh`.
-* A [kubeconfig](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/) file will be written to `/etc/rancher/rke2/rke2.yaml`.
-* A token that can be used to register other server or agent nodes will be created at `/var/lib/rancher/rke2/server/node-token`
+- `rke2-server`服务将被安装。`rke2-server` 服务将被配置为在节点重启后或进程崩溃或被杀时自动重启。
+- 其他的实用程序将被安装在`/var/lib/rancher/rke2/bin/`。它们包括 `kubectl`, `crictl`, 和 `ctr`. 注意，这些东西默认不在你的路径上。
+- 还有两个清理脚本会安装到`/usr/local/bin/rke2`的路径上。它们是 `rke2-killall.sh`和`rke2-uninstall.sh`。
+- 一个[kubeconfig](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/)文件将被写入`/etc/rancher/rke2/rke2.yaml`。
+- 一个可用于注册其他 server 或 agent 节点的令牌将在`/var/lib/rancher/rke2/server/node-token`文件中创建。
 
-**Note:** If you are adding additional server nodes, you must have an odd number in total. An odd number is needed to maintain quorum. See the [High Availability documentation](ha.md) for more details.
+**注意：** 如果你要添加额外的 server 节点，则总数必须为奇数。需要奇数来维持法定人数。更多细节请参见[高可用文档](ha.md) 。
 
-### Agent (Worker) Node Installation
-#### 1. Run the installer
+### Agent（Worker）节点的安装
+
+#### 1. 运行安装程序
+
 ```
 curl -sfL https://get.rke2.io | INSTALL_RKE2_TYPE="agent" sh -
 ```
-This will install the `rke2-agent` service and the `rke2` binary onto your machine.
 
-#### 2. Enable the rke2-agent service
+这将在你的机器上安装`rke2-agent`服务和`rke2`二进制文件。
+
+#### 2. 启用 rke2-agent 服务
+
 ```
 systemctl enable rke2-agent.service
 ```
 
-#### 3. Configure the rke2-agent service
+#### 3. 配置 rke2-agent 服务
+
 ```
 mkdir -p /etc/rancher/rke2/
 vim /etc/rancher/rke2/config.yaml
 ```
-Content for config.yaml:
+
+config.yaml 的内容。
+
 ```bash
 server: https://<server>:9345
 token: <token from server node>
 ```
-**Note:** The `rke2 server` process listens on port `9345` for new nodes to register. The Kubernetes API is still served on port `6443`, as normal.
 
-#### 4. Start the service
+**注意：** `rke2 server`进程通过端口`9345`监听新节点的注册。正常情况下，Kubernetes API 仍可在端口 6443 上使用。
+
+#### 4. 启动服务
+
 ```
 systemctl start rke2-agent.service
 ```
 
-**Follow the logs, if you like**
+**如果你愿意，可以关注一下日志**。
+
 ```
 journalctl -u rke2-agent -f
 ```
 
-**Note:** Each machine must have a unique hostname. If your machines do not have unique hostnames, set the `node-name` parameter in the `config.yaml` file and provide a value with a valid and unique hostname for each node.
+**注意：** 每台机器必须有一个唯一的主机名。如果你的机器没有唯一的主机名，请在`config.yaml`文件中设置`node-name`参数，并为每个节点提供一个有效和唯一的主机名。
 
-To read more about the config.yaml file, see the [Install Options documentation.](./install_options/install_options.md#configuration-file)
+要阅读更多关于 config.yaml 文件的信息，请参见[安装选项文档。](./install_options/install_options.md#configuration-file)

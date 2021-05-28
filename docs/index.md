@@ -1,32 +1,29 @@
 ![](./assets/logo-horizontal-rke.svg)
 
-RKE2, also known as RKE Government, is Rancher's next-generation Kubernetes distribution.
+RKE2，也被称为 RKE Government，是 Rancher 的下一代 Kubernetes 发行版。
 
-It is a fully [conformant Kubernetes distribution](https://landscape.cncf.io/selected=rke-government) that focuses on security and compliance within the U.S. Federal Government sector.
+为了实现这些目标，RKE2 做了以下工作:
 
-To meet these goals, RKE2 does the following:
+- 提供[默认值和配置选项](security/hardening_guide.md)，允许集群在最小的操作干预下通过 CIS Kubernetes Benchmark [v1.5](security/cis_self_assessment15.md)或[v1.6](security/cis_self_assessment16.md)
+- 启用 [FIPS 140-2 标准](security/fips_support.md)
+- 在我们的构建管道中使用[trivy](https://github.com/aquasecurity/trivy)定期扫描组件的 CVEs。
 
-- Provides [defaults and configuration options](security/hardening_guide.md) that allow clusters to pass the CIS Kubernetes Benchmark [v1.5](security/cis_self_assessment15.md) or [v1.6](security/cis_self_assessment16.md)with minimal operator intervention
-- Enables [FIPS 140-2 compliance](security/fips_support.md)
-- Regularly scans components for CVEs using [trivy](https://github.com/aquasecurity/trivy) in our build pipeline
+## 这与 RKE 或 K3s 有什么不同？
 
-## How is this different from RKE or K3s?
+RKE2 结合了 RKE1.x 版本（以下简称 RKE1）和 K3s 的优点和特性。
 
-RKE2 combines the best-of-both-worlds from the 1.x version of RKE (hereafter referred to as RKE1) and K3s.
+从 K3s 中，它继承了可用性、易操作性和部署模式。
 
-From K3s, it inherits the usability, ease-of-operations, and deployment model.
+从 RKE1 来看，它继承了与上游 Kubernetes 的紧密一致性。在一些地方，K3s 与上游的 Kubernetes 有分歧，以便为边缘部署进行优化，但 RKE1 和 RKE2 可以与上游保持密切一致。
 
-From RKE1, it inherits close alignment with upstream Kubernetes. In places K3s has diverged from upstream Kubernetes in order to optimize for edge deployments, but RKE1 and RKE2 can stay closely aligned with upstream.
+重要的是，RKE2 不像 RKE1 那样依赖 Docker。RKE1 利用 Docker 来部署和管理控制平面组件以及 Kubernetes 的容器运行时间。RKE2 将控制平面组件作为静态 pod 启动，由 kubelet 管理。嵌入的容器运行时是 containerd。
 
-Importantly, RKE2 does not rely on Docker as RKE1 does. RKE1 leveraged Docker for deploying and managing the control plane components as well as the container runtime for Kubernetes. RKE2 launches control plane components as static pods, managed by the kubelet. The embedded container runtime is containerd.
+## 为什么有两个名字？
 
-## Why two names?
-It is known as RKE Government in order to convey the primary use cases and sector it currently targets.
+它被称为 RKE Government，目的是传达其当前针对的主要用例和部门。
 
-It is also known as RKE 2 as it is the next next iteration of the Rancher Kubernetes Engine for datacenter use cases. The distribution runs standalone and integration work into Rancher is underway. We intend to make RKE 2 an option in Rancher once it achieves feature parity with RKE. An upgrade path from RKE to RKE2 is also under development for those that want to migrate.
+它也被称为 RKE 2，因为它是 Rancher Kubernetes 引擎针对数据中心用例的下一次迭代。该版本独立运行，与 Rancher 的整合工作正在进行中。我们打算在 Rancher 实现与 RKE 的功能对等后，将 RKE 2 作为一个选项。从 RKE 到 RKE2 的升级路径也正在开发中，供那些想要迁移的人使用。
 
-## Security
+## 安全
 
-Rancher Labs supports responsible disclosure and endeavors to resolve security
-issues in a reasonable timeframe. To report a security vulnerability, email
-[security@rancher.com](mailto:security@rancher.com).
+Rancher Labs 支持负责任的披露，并努力在合理的时间范围内解决安全问题。要报告安全漏洞，请发送电子邮件至[security@rancher.com](mailto:security@rancher.com)。
