@@ -1,28 +1,29 @@
-# Networking
+# 网络
 
-This page explains how CoreDNS and the Nginx-Ingress controller work within RKE2.
+本页解释了 CoreDNS 和 Nginx-Ingress controller 如何在 RKE2 中工作。
 
-Refer to the [Installation Network Options](install/network_options.md) page for details on Canal configuration options, or how to set up your own CNI.
+请参考[安装网络选项](install/network_options.md)页面，了解 Canal 配置选项的详细信息，或者如何设置你自己的 CNI。
 
-For information on which ports need to be opened for RKE2, refer to the [Installation Requirements](install/requirements.md).
+关于 RKE2 需要打开哪些端口的信息，请参考[安装要求](install/requirements.md)。
 
 - [CoreDNS](#coredns)
 - [Nginx Ingress Controller](#nginx-ingress-controller)
-- [Nodes Without a Hostname](#nodes-without-a-hostname)
+- [没有主机名的节点](#nodes-without-a-hostname)
 
 ## CoreDNS
 
-CoreDNS is deployed by default when starting the server. To disable, run each server with `disable: rke2-coredns` option in your configuration file.
+CoreDNS 是在启动 server 时默认部署的。要禁用，请在运行每台 server 时在配置文件中加入`disable: rke2-coredns`选项。
 
-If you don't install CoreDNS, you will need to install a cluster DNS provider yourself.
+如果你不安装 CoreDNS，你将需要自己安装一个集群 DNS 提供商。
 
 ## Nginx Ingress Controller
 
-[nginx-ingress](https://github.com/kubernetes/ingress-nginx) is an Ingress controller powered by NGINX that uses a ConfigMap to store the NGINX configuration.
+[nginx-ingress](https://github.com/kubernetes/ingress-nginx)是一个由 NGINX 提供的 Ingress controller，使用 ConfigMap 来存储 NGINX 的配置。
 
-`nginx-ingress` is deployed by default when starting the server. Ports 80 and 443 will be bound by the ingress controller in its default configuration, making these unusable for HostPort or NodePort services in the cluster.
+在启动 server 时，`nginx-ingress` 被默认部署。端口 80 和 443 将在其默认配置中由 Ingress controller 绑定，使得这些端口无法用于集群中的 HostPort 或 NodePort 服务。
 
-Configuration options can be specified by creating a [HelmChartConfig manifest](helm.md#customizing-packaged-components-with-helmchartconfig) to customize the `rke2-ingress-nginx` HelmChart values. For example, a HelmChartConfig at `/var/lib/rancher/rke2/server/manifests/rke2-ingress-nginx-config.yaml` with the following contents sets `use-forwarded-headers` to `"true"` in the ConfigMap storing the NGINX config:
+配置选项可以通过创建[HelmChartConfig manifest](helm.md#customizing-packaged-components-with-helmchartconfig)来自定义`rke2-ingress-nginx` HelmChart 值。例如，在`/var/lib/rancher/rke2/server/manifests/rke2-ingress-nginx-config.yaml`中的 HelmChartConfig 有如下内容，在存储 NGINX 配置的 ConfigMap 中，将`use-forwarded-headers`设为`true`：
+
 ```yaml
 # /var/lib/rancher/rke2/server/manifests/rke2-ingress-nginx-config.yaml
 ---
@@ -37,10 +38,11 @@ spec:
       config:
         use-forwarded-headers: "true"
 ```
-For more information, refer to the official [nginx-ingress Helm Configuration Parameters](https://github.com/kubernetes/ingress-nginx/tree/9c0a39636da11b7e262ddf0b4548c79ae9fa1667/charts/ingress-nginx#configuration).
 
-To disable the NGINX ingress controller, start each server with the `disable: rke2-ingress-nginx` option in your configuration file.
+更多信息请参考官方的[nginx-ingress Helm 配置参数]（https://github.com/kubernetes/ingress-nginx/tree/9c0a39636da11b7e262ddf0b4548c79ae9fa1667/charts/ingress-nginx#configuration）。
 
-## Nodes Without a Hostname
+要禁用 NGINX ingress controller，在配置文件中加入 `disable: rke2-ingress-nginx` 选项，启动每台 server。
 
-Some cloud providers, such as Linode, will create machines with "localhost" as the hostname and others may not have a hostname set at all. This can cause problems with domain name resolution. You can run RKE2 with the `node-name` parameter and this will pass the node name to resolve this issue.
+## 没有主机名的节点
+
+一些云计算供应商，如 Linode，会以 `localhost` 作为主机名来创建机器，其他的可能根本就没有设置主机名。这可能会导致域名解析方面的问题。你可以在运行 RKE2 时加入 `node-name` 参数，这将传递节点名称来解决这个问题。

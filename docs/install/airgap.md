@@ -1,42 +1,45 @@
-# Air-Gap Install
+# 离线安装
 
-**Important:** If your node has NetworkManager installed and enabled, [ensure that it is configured to ignore CNI-managed interfaces.](https://docs.rke2.io/known_issues/#networkmanager)
+**重要说明：**如果你的节点安装并启用了 NetworkManager，[确保它被配置为忽略 CNI 管理的接口。](https://docs.rke2.io/known_issues/#networkmanager)
 
-RKE2 can be installed in an air-gapped environment with two different methods.
-You can either deploy via the `rke2-airgap-images` tarball release artifact, or by using a private registry.
+RKE2 可以通过两种不同的方式安装在一个离线环境中。你可以通过`rke2-airgap-images` tarball release artifacts 进行部署，也可以通过使用私有注册表。
 
-All files mentioned in the steps can be obtained from the assets of the desired released rke2 version [here](https://github.com/rancher/rke2/releases).
+步骤中提到的所有文件都可以在[此处](https://github.com/rancher/rke2/releases)从所需发布的 rke2 版本的资产中获取。
 
-If running on an SELinux enforcing air-gapped node, you must first install the necessary SELinux policy RPM before performing these steps. See our [RPM Documentation](https://github.com/rancher/rke2#rpm-repositories) to determine what you need.
+如果在一个执行 SELinux 的离线节点上运行，在执行这些步骤之前，你必须先安装必要的 SELinux policy RPM。请参阅我们的[RPM 文档](https://github.com/rancher/rke2#rpm-repositories)以确定你需要什么。
 
-## Tarball Method
-1. Download the airgap images tarballs from the RKE release artifacts list for the version and platform of RKE2 you are using.
-    * Use `rke2-images.linux-amd64.tar.zst`, or `rke2-images.linux-amd64.tar.gz` for releases prior to v1.20. Zstandard offers better compression ratios and faster decompression speeds compared to gzip.  
-    * If using the default Canal CNI (`--cni=canal`), you can use either the `rke2-image` legacy archive as described above, or `rke2-images-core` and `rke2-images-canal` archives.
-    * If using the alternative Cilium CNI (`--cni=cilium`), you must download the `rke2-images-core` and `rke2-images-cilium` archives instead.
-    * If using your own CNI (`--cni=none`), you can download only the `rke2-images-core` archive.
-    * If enabling the vSphere CPI/CSI charts (`--cloud-provider-name=vsphere`), you must also download the `rke2-images-vsphere` archive.
-2. Ensure that the `/var/lib/rancher/rke2/agent/images/` directory exists on the node.
-3. Copy the compressed archive to `/var/lib/rancher/rke2/agent/images/` on the node, ensuring that the file extension is retained.
-4. [Install RKE2](#install-rke2)
+## Tarball 方式
 
-## Private Registry Method
-As of RKE2 v1.20, private registry support honors all settings from the [containerd registry configuration](containerd_registry_configuration.md). This includes endpoint override and transport protocol (HTTP/HTTPS), authentication, certificate verification, etc.
+1. 从 RKE2 的版本和平台的 RKE release artifacts 列表中下载 airgap images tarball。
+   - 对于 v1.20 之前的版本，使用`rke2-images.linux-amd64.tar.zst`，或`rke2-images.linux-amd64.tar.gz`。与 gzip 相比，Zstandard 提供了更好的压缩率和更快的解压速度。
+   - 如果使用默认的 Canal CNI（`--cni=canal`），你可以使用上述的`rke2-image`旧存档，或者`rke2-images-core`和`rke2-images-canal`。
+   - 如果使用替代的 Cilium CNI（`--cni=cilium`），你必须下载`rke2-images-core`和`rke2-images-cilium`。
+   - 如果使用您自己的 CNI（`--cni=none`），您可以只下载`rke2-images-core`。
+   - 如果启用 vSphere CPI/CSI charts（`--cloud-provider-name=vsphere`），您还必须下载`rke2-images-vsphere`。
+2. 确保节点上存在`/var/lib/rancher/rke2/agent/images/`目录。
+3. 将压缩档案复制到节点上的`/var/lib/rancher/rke2/agent/images/`，确保保留文件扩展名。
+4. [安装 RKE2](#install-rke2)
 
-Prior to RKE2 v1.20, private registries must use TLS, with a cert trusted by the host CA bundle. If the registry is using a self-signed cert, you can add the cert to the host CA bundle with `update-ca-certificates`. The registry must also allow anonymous (unauthenticated) access.
+## 私有注册表方式
 
-1. Add all the required system images to your private registry. A list of images can be obtained from the `.txt` file corresponding to each tarball referenced above, or you may `docker load` the airgap image tarballs, then tag and push the loaded images.
-2. If using a private or self-signed certificate on the registry, add the registry's CA cert to the containerd registry configuration, or operating system's trusted certs for releases prior to v1.20.
-3. [Install RKE2](#install-rke2) using the `system-default-registry` parameter, or use the [containerd registry configuration](containerd_registry_configuration.md) to use your registry as a mirror for docker.io.
+从 RKE2 v1.20 开始，私有注册表支持来自[containerd 注册表配置](containerd_registry_configuration.md)中的所有设置。这包括 endpoint 覆盖和传输协议（HTTP/HTTPS）、认证、证书验证等。
 
-## Install RKE2
-These steps should only be performed after completing one of either the [Tarball Method](#tarball-method) or [Private Registry Method](#private-registry-method).
+在 RKE2 v1.20 之前，私有注册表必须使用 TLS，并使用由主机 CA 捆绑信任的 cert。如果 registry 使用的是自签名的证书，你可以用`update-ca-certificates`将该证书添加到主机 CA 捆绑中。registry 还必须允许匿名（未认证）访问。
 
-1. Obtain the rke2 binary file `rke2.linux-amd64`.
-2. Ensure the binary is named `rke2` and place it in `/usr/local/bin`. Ensure it is executable.
-3. Run the binary with the desired parameters. For example, if using the Private Registry Method, your config file would have the following:
+1. 将所有需要的系统镜像添加到你的私有注册表。镜像列表可以从上面提到的每个 tarball 对应的`.txt`文件中获得，或者你可以`docker load` 离线镜像 tarballs，然后标记并推送加载的镜像。
+2. 如果在 registry 上使用私有或自签名的证书，请将 registry 的 CA 证书添加到 containerd registry 配置中，如果是 v1.20 之前的版本，则添加操作系统的可信证书。
+3. 使用`system-default-registry`参数[安装 RKE2](#install-rke2)，或使用[containerd registry 配置](containerd_registry_configuration.md)将你的 registry 作为 docker.io 的一个镜像。
+
+## 安装 RKE2
+
+这些步骤只能在完成[Tarball 方式](#tarball-method)或[私有注册表方式](#private-registry-method)中的一项后执行。
+
+1. 获得 rke2 的二进制文件`rke2.linux-amd64`。
+2. 确保二进制文件被命名为 `rke2`，并将其放在 `/usr/local/bin` 中。确保它是可执行的。
+3. 用所需的参数运行二进制文件。例如，如果使用私有注册表方式，你的配置文件将有以下内容：
+
 ```yaml
 system-default-registry: "registry.example.com:5000"
 ```
 
-**Note:** The `system-default-registry` parameter must specify only valid RFC 3986 URI authorities, i.e. a host and optional port.
+**注意：** `system-default-registry`参数必须只指定有效的 RFC 3986 URI 授权，即一个主机和可选的端口。

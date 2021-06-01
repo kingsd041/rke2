@@ -1,59 +1,57 @@
-# Upgrade Basics
+# 基础升级
 
 
-You can upgrade rke2 by using the installation script, or by manually installing the binary of the desired version.
+你可以通过使用安装脚本来升级rke2，或者通过手动安装所需版本的二进制文件。
 
->**Note:** Upgrade the server nodes first, one at a time. Once all servers have been upgraded, you may then upgrade agent nodes.
+>**注意：** 先升级server节点，一次一个。一旦所有server都被升级，你就可以升级agent节点。
 
 ### Release Channels
 
-Upgrades performed via the installation script or using our [automated upgrades](automated_upgrade.md) feature can be tied to different release channels.
+通过安装脚本或使用我们的[自动升级](automatic_upgrade.md)功能进行的升级可以绑定到不同的release channels。
 
-Currently, the `latest` channel is the only available channel. Once we have more releases and need to distinguish between the most recent release and the most stable release, we will add a stable channel and set it as the default.
+对于一个详尽的、最新的channel列表，你可以访问[rke2 channel服务API](https://update.rke2.io/v1-release/channels)。关于channel如何工作的更多技术细节，你可以参考[channelserver项目](https://github.com/rancher/channelserver)。
 
-For an exhaustive and up-to-date list of channels, you can visit the [rke2 channel service API](https://update.rke2.io/v1-release/channels). For more technical details on how channels work, you see the [channelserver project](https://github.com/rancher/channelserver).
+### 使用安装脚本升级rke2
 
-### Upgrade rke2 Using the Installation Script
-
-To upgrade rke2 from an older version you can re-run the installation script using the same flags, for example:
+要从旧版本升级rke2，你可以使用相同的标志重新运行安装脚本，例如:
 
 ```sh
 curl -sfL https://get.rke2.io | sh -
 ```
-This will upgrade to a newer version in the stable channel by default.
+这将默认升级到stable channel中的较新版本。
 
-If you want to upgrade to a newer version in a specific channel (such as latest) you can specify the channel:
+如果你想升级到一个特定channel的较新版本（如最新版本），你可以指定该channel:
 ```sh
 curl -sfL https://get.rke2.io | INSTALL_RKE2_CHANNEL=latest sh -
 ```
 
-If you want to upgrade to a specific version you can run the following command:
+如果你想升级到一个特定的版本，你可以运行以下命令:
 
 ```sh
 curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION=vX.Y.Z-rc1 sh -
 ```
 
-### Manually Upgrade rke2 Using the Binary
+### 使用二进制文件手动升级rke2
 
-Or to manually upgrade rke2:
+或者手动升级rke2。
 
-1. Download the desired version of the rke2 binary from [releases](https://github.com/rancher/rke2/releases)
-2. Copy the downloaded binary to `/usr/local/bin/rke2` for tarball installed rke2, and `/usr/bin` for rpm installed rke2
-3. Stop the old rke2 binary
-4. Launch the new rke2 binary
+1. 从[发布](https://github.com/rancher/rke2/releases)下载所需版本的rke2二进制文件。
+2. 将下载的二进制文件复制到`/usr/local/bin/rke2`，用于安装tarball的rke2；`/usr/bin`用于安装rpm的rke2。
+3. 停止旧的rke2二进制文件
+4. 启动新的rke2二进制文件
 
-### Restarting rke2
+### 重启rke2
 
-Restarting rke2 is supported by the installation script for systemd.
+systemd 的安装脚本支持重启 rke2。
 
 **systemd**
 
-To restart servers manually:
+手动重启server：
 ```sh
 sudo systemctl restart rke2-server
 ```
 
-To restart agents manually:
+手动重启agent：
 ```sh
 sudo systemctl restart rke2-agent
 ```

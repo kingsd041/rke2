@@ -1,43 +1,44 @@
 ---
-title: Uninstall
+title: 卸载
 ---
 
-# Uninstall
+# 卸载
 
-> **Note:**  Uninstalling RKE2 deletes the cluster data and all of the scripts.
+> **注意：** 卸载 RKE2 会删除集群的数据和所有的脚本。
 
-Depending on the method used to install RKE2, the uninstallation process varies.
+根据安装 RKE2 的安装方式不同，卸载过程也不同。
 
-## RPM Method
-To uninstall RKE2 installed via the RPM method from your system, simply run the commands corresponding to the version of RKE2 you have installed. This will shutdown RKE2 process, remove the RKE2 RPMs, and clean up files used by RKE2.
+## RPM 方式
 
-=== "RKE2 v1.18.13+rke2r1 and newer"
-    Starting with RKE2 `v1.18.13+rke2r1`, the bundled `rke2-uninstall.sh` script will remove the corresponding RPM packages during the uninstall process. Simply run the following command:
+要从系统中卸载通过 RPM 方式安装的 RKE2，只需运行与你所安装的 RKE2 版本对应的命令即可。这将关闭 RKE2 进程，删除 RKE2 的 RPM，并清理 RKE2 使用的文件。
+
+**RKE2 v1.18.13+rke2r1 和更新的版本**
+从 RKE2`v1.18.13+rke2r1`开始，捆绑的`rke2-uninstall.sh`脚本将在卸载过程中删除相应的 RPM 包。只需运行以下命令即可：
 
     ```bash
     /usr/bin/rke2-uninstall.sh
     ```
 
-=== "RKE2 Prior to v1.18.13+rke2r1"
-    If you are running a version of RKE2 that is older than `v1.18.13+rke2r1`, you will need to manually remove the RKE2 RPMs after calling the `rke2-uninstall.sh` script.
-    
+**RKE2 v1.18.13+rke2r1 之前的版本**
+如果你运行的 RKE2 版本早于`v1.18.13+rke2r1`，你需要在调用`rke2-uninstall.sh`脚本后手动删除 RKE2 RPM。
+
     ```bash
     /usr/bin/rke2-uninstall.sh
     yum remove -y 'rke2-*'
     rm -rf /run/k3s
     ```
 
-=== "RKE2 Prior to v1.18.11+rke2r1"
-    RPM based installs older than and including `v1.18.10+rke2r1` did not package the `rke2-uninstall.sh` script. These instructions provide guidance on how to download and use the necessary scripts.
+**RKE2 v1.18.11+rke2r1 之前的版本**
+在 v1.18.10+rke2r1 之前的基于 RPM 的安装没有打包`rke2-uninstall.sh`脚本。这些说明提供了如何下载和使用必要脚本的指导。
 
-    First, remove the corresponding RKE2 packages and `/run/k3s` directory.
+    首先，删除相应的RKE2软件包和 `/run/k3s` 目录。
 
     ```bash
     yum remove -y 'rke2-*'
     rm -rf /run/k3s
     ```
 
-    Once those commands are run, the rke2-uninstall.sh and rke2-killall.sh scripts should be downloaded. These two scripts will stop any running containers and processes, clean up used processes, and ultimately remove RKE2 from the system. Run the commands below.
+    运行这些命令后，rke2-uninstall.sh和rke2-killall.sh脚本应该被下载。这两个脚本将停止所有正在运行的容器和进程，清理已使用的进程，并最终从系统中删除RKE2。运行下面的命令：
 
     ```bash
     curl -sL https://raw.githubusercontent.com/rancher/rke2/488bab0f48b848e408ce399c32e7f5f73ce96129/bundle/bin/rke2-uninstall.sh --output rke2-uninstall.sh
@@ -50,15 +51,15 @@ To uninstall RKE2 installed via the RPM method from your system, simply run the 
 
     ```
 
-    Now run the rke2-uninstall.sh script. This will also call the rke2-killall.sh.
-    
+    现在运行rke2-uninstall.sh脚本。这也将调用rke2-killall.sh。
+
     ```bash
     /usr/local/bin/rke2-uninstall.sh
     ```
 
-## Tarball Method
+## Tarball 方式
 
-To uninstall RKE2 installed via the Tarball method from your system, simply run the command below. This will shutdown process, remove the RKE2 binary, and clean up files used by RKE2.
+要从你的系统中卸载通过 Tarball 方式安装的 RKE2，只需运行下面的命令。这将关闭进程，删除 RKE2 二进制文件，并清理 RKE2 使用的文件。
 
 ```bash
 /usr/local/bin/rke2-uninstall.sh

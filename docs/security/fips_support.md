@@ -1,48 +1,49 @@
 ---
-title: FIPS 140-2 Enablement
+title: FIPS 140-2 启用
 ---
 
-FIPS 140-2 is a U.S. Federal Government security standard used to approve cryptographic modules. This document explains how RKE2 is built with FIPS validated cryptographic libraries.
+FIPS 140-2 是美国联邦政府的安全标准，用于批准加密模块。这份文件解释了 RKE2 是如何使用 FIPS 验证的加密库构建的。
 
-## Use of FIPS Compatible Go compiler.
+## 使用 FIPS 兼容的 Go 编译器。
 
-The Go compiler in use can be found [here](https://hub.docker.com/u/goboring). Each component of the system is built with the version of this compiler that matches the same standard Go compiler version that would be used otherwise.
+所使用的 Go 编译器可以在[这里](https://hub.docker.com/u/goboring)找到。系统的每个组件都是用这个编译器的版本来构建的，与其他情况下使用的标准 Go 编译器版本一致。
 
-This version of Go replaces the standard Go crypto libraries with the FIPS validated BoringCrypto module. See the [readme](https://github.com/golang/go/blob/dev.boringcrypto/README.boringcrypto.md) for more details.
+这个版本的 Go 用经过 FIPS 验证的 BoringCrypto 模块取代了标准 Go 密码库。更多细节请参见 [readme](https://github.com/golang/go/blob/dev.boringcrypto/README.boringcrypto.md) 。
 
-Moreover, this module is currently being [revalidated](../assets/fips_engagement.pdf) as the Rancher Kubernetes Cryptographic Library for the additional platforms and systems supported by RKE2.
+此外，这个模块目前正在[重新验证](../assets/fips_engagement.pdf)，作为 Rancher Kubernetes 加密库，用于 RKE2 支持的其他平台和系统。
 
-### FIPS Support in Cluster Components
+### 集群组件中的 FIPS 支持
 
-Most of the components of the RKE2 system are statically compiled with the GoBoring Go compiler implementation that takes advantage of the BoringSSL library. RKE2, from a component perspective, is broken up in a number of sections. The list below contains the sections and associated components.
+RKE2 系统的大部分组件都是用 GoBoring Go 编译器实现静态编译的，它利用了 BoringSSL 库的优势。RKE2，从组件的角度来看，被分成了许多部分。下面的列表包含了这些部分和相关的组件。
 
-* Kubernetes
-  * API Server
-  * Controller Manager
-  * Scheduler
-  * Kubelet
-  * Kube Proxy
-  * Metric Server
-  * Kubectl
+- Kubernetes
 
-* Helm Charts
-  * Flannel
-  * Calico
-  * CoreDNS
+  - API Server
+  - Controller Manager
+  - Scheduler
+  - Kubelet
+  - Kube Proxy
+  - Metric Server
+  - Kubectl
 
-## Runtime
+- Helm Charts
+  - Flannel
+  - Calico
+  - CoreDNS
 
-To ensure that all aspects of the system architecture are using FIPS 140-2 compliant algorithm implementations, the RKE2 runtime contains utilities statically compiled with the FIPS enabled Go compiler for FIPS 140-2 compliance. This ensures that all levels of the stack are compliant from Kubernetes daemons to container orchestration mechanics.
+## 运行时
 
-* etcd
-* containerd
-  * containerd-shim
-  * containerd-shim-runc-v1
-  * containerd-shim-runc-v2
-  * ctr
-* crictl
-* runc
+为了确保系统架构的所有方面都使用符合 FIPS 140-2 标准的算法实现，RKE2 运行时包含了用符合 FIPS 标准的 Go 编译器静态编译的实用程序。这确保了从 Kubernetes 守护程序到容器协调机制的所有层面都是合规的。
+
+- etcd
+- containerd
+  - containerd-shim
+  - containerd-shim-runc-v1
+  - containerd-shim-runc-v2
+  - ctr
+- crictl
+- runc
 
 ## Ingress
 
-The NGINX Ingress included with RKE2 is **not** currently FIPS enabled. It can, however, be [disabled and replaced](../advanced.md#disabling-server-charts) by the cluster operator/owner.
+RKE2 中包含的 NGINX Ingress 目前没有启用 FIPS。然而，它可以被集群运营商/所有者[禁用和替换]（.../advanced.md#disabling-server-charts）。

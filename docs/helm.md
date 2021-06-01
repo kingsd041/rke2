@@ -1,24 +1,24 @@
-# Helm Integration
+# Helm 集成
 
-Helm is the package management tool of choice for Kubernetes. Helm charts provide templating syntax for Kubernetes YAML manifest documents. With Helm we can create configurable deployments instead of just using static files. For more information about creating your own catalog of deployments, check out the docs at [https://helm.sh/docs/intro/quickstart/](https://helm.sh/docs/intro/quickstart/).
+Helm 是 Kubernetes 的首选软件包管理工具。Helm chart 为 Kubernetes YAML 清单文件提供模板语法。通过 Helm，我们可以创建可配置的部署，而不是仅仅使用静态文件。关于创建自己的部署目录的更多信息，请查看[https://helm.sh/docs/intro/quickstart/](https://helm.sh/docs/intro/quickstart/)的文档。
 
-RKE2 does not require any special configuration to use with Helm command-line tools. Just be sure you have properly set up your kubeconfig as per the section about [cluster access](../cluster-access). RKE2 does include some extra functionality to make deploying both traditional Kubernetes resource manifests and Helm Charts even easier with the [rancher/helm-release CRD.](#using-the-helm-crd)
+RKE2 在使用 Helm 命令行工具时不需要任何特殊配置。只要确保你已经按照[访问集群](.../cluster-access)一节的规定正确设置了你的 kubeconfig。RKE2 包括一些额外的功能，使用[rancher/helm-release CRD.](#using-thehelm-crd)更容易部署传统的 Kubernetes 资源清单和 Helm Charts。
 
-This section covers the following topics:
+本节包括以下主题：
 
-- [Automatically Deploying Manifests and Helm Charts](#automatically-deploying-manifests-and-helm-charts)
-- [Using the Helm CRD](#using-the-helm-crd)
-- [Customizing Packaged Components with HelmChartConfig](#customizing-packaged-components-with-helmchartconfig)
+- [自动部署清单和 Helm chart](#automatically-deploying-manifests-and-helm-charts)
+- [使用 Helm CRD](#using-thehelm-crd)
+- [用 HelmChartConfig 自定义打包的组件](#customizing-packaged-components-with-helmchartconfig)
 
-### Automatically Deploying Manifests and Helm Charts
+### 自动部署清单和 Helm chart
 
-Any Kubernetes manifests found in `/var/lib/rancher/rke2/server/manifests` will automatically be deployed to RKE2 in a manner similar to `kubectl apply`. Manifests deployed in this manner are managed as AddOn custom resources, and can be viewed by running `kubectl get addon -A`. You will find AddOns for packaged components such as CoreDNS, Local-Storage, Nginx-Ingress, etc. AddOns are created automatically by the deploy controller, and are named based on their filename in the manifests directory.
+在`/var/lib/rancher/rke2/server/manifests`中发现的任何 Kubernetes 清单都会以类似于`kubectl apply`的方式自动部署到 RKE2。以这种方式部署的 manifests 作为 AddOn 自定义资源进行管理，可以通过运行`kubectl get addon -A`查看。你会发现用于打包组件的 AddOns，如 CoreDNS、Local-Storage、Nginx-Ingress 等。AddOns 由部署控制器自动创建，并根据清单目录中的文件名来命名。
 
-It is also possible to deploy Helm charts as AddOns. RKE2 includes a [Helm Controller](https://github.com/k3s-io/helm-controller/) that manages Helm charts using a HelmChart Custom Resource Definition (CRD).
+也可以将 Helm chart 作为 AddOns 进行部署。RKE2 包括一个[Helm Controller](https://github.com/k3s-io/helm-controller/)，它使用 HelmChart 自定义资源定义（CRD）来管理 Helm chart。
 
-### Using the Helm CRD
+### 使用 Helm CRD
 
-The [HelmChart resource definition](https://github.com/k3s-io/helm-controller#helm-controller) captures most of the options you would normally pass to the `helm` command-line tool. Here's an example of how you might deploy Grafana from the default chart repository, overriding some of the default chart values. Note that the HelmChart resource itself is in the `kube-system` namespace, but the chart's resources will be deployed to the `monitoring` namespace.
+[HelmChart 资源定义](https://github.com/k3s-io/helm-controller#helm-controller)捕获了你通常传递给`helm`命令行工具的大部分选项。下面是一个例子，说明你如何从默认的 chart 资源库部署 Grafana，覆盖一些默认的 chart 值。注意，HelmChart 资源本身在`kube-system`命名空间中，但 chart 的资源将被部署到`monitoring`命名空间。
 
 ```yaml
 apiVersion: helm.cattle.io/v1
@@ -42,28 +42,28 @@ spec:
         enabled: true
 ```
 
-#### HelmChart Field Definitions
+#### HelmChart 字段定义
 
-| Field | Default | Description | Helm Argument / Flag Equivalent |
-|-------|---------|-------------|-------------------------------|
-| name |   | Helm Chart name | NAME |
-| spec.chart |   | Helm Chart name in repository, or complete HTTPS URL to chart archive (.tgz) | CHART |
-| spec.targetNamespace | default | Helm Chart target namespace | `--namespace` |
-| spec.version |   | Helm Chart version (when installing from repository) | `--version` |
-| spec.repo |   | Helm Chart repository URL | `--repo` |
-| spec.helmVersion | v3 | Helm version to use (`v2` or `v3`) |  |
-| spec.bootstrap | False | Set to True if this chart is needed to bootstrap the cluster (Cloud Controller Manager, etc) |  |
-| spec.set |   | Override simple default Chart values. These take precedence over options set via valuesContent. | `--set` / `--set-string` |
-| spec.valuesContent |   | Override complex default Chart values via YAML file content | `--values` |
-| spec.chartContent |   | Base64-encoded chart archive .tgz - overrides spec.chart | CHART |
+| Field                | Default | Description                                                         | Helm Argument / Flag Equivalent |
+| -------------------- | ------- | ------------------------------------------------------------------- | ------------------------------- |
+| name                 |         | Helm Chart name                                                     | NAME                            |
+| spec.chart           |         | 存储库中的 Helm chart 名称，或 chart 存档的完整 HTTPS URL（.tgz）。 | CHART                           |
+| spec.targetNamespace | default | Helm Chart 目标命名空间                                             | `--namespace`                   |
+| spec.version         |         | Helm Chart 版本 (当从资源库安装时)                                  | `--version`                     |
+| spec.repo            |         | Helm Chart 资源库 URL                                               | `--repo`                        |
+| spec.helmVersion     | v3      | 要使用的 Helm 版本 (`v2` 或 `v3`)                                   |                                 |
+| spec.bootstrap       | False   | 如果需要此图来启动集群（云控制器管理器等），则设置为 True           |                                 |
+| spec.set             |         | 覆盖简单的默认 chart 值。这些优先于通过`valuesContent`设置的选项。  | `--set` / `--set-string`        |
+| spec.valuesContent   |         | 通过 YAML 文件内容覆盖复杂的默认 chart 值                           | `--values`                      |
+| spec.chartContent    |         | Base64 编码的 chart 存档.tgz - 覆盖 `spec.chart`                    | CHART                           |
 
-### Customizing Packaged Components with HelmChartConfig
+### 使用 HelmChartConfig 自定义打包的组件
 
-To allow overriding values for packaged components that are deployed as HelmCharts (such as Canal, CoreDNS, Nginx-Ingress, etc), RKE2 supports customizing deployments via a `HelmChartConfig` resources. The `HelmChartConfig` resource must match the name and namespace of its corresponding HelmChart, and supports providing additional `valuesContent`, which is passed to the `helm` command as an additional value file.
+RKE2 支持通过 `HelmChartConfig` 资源来自定义部署，允许覆盖作为 HelmCharts 部署的打包组件（如 Canal、CoreDNS、Nginx-Ingress 等）的值。`HelmChartConfig`资源必须与其对应的 HelmChart 的名称和命名空间相匹配，并支持提供额外的`valuesContent`，作为一个额外的值文件传递给`helm`命令。
 
-> **Note:** HelmChart `spec.set` values override HelmChart and HelmChartConfig `spec.valuesContent` settings.
+> **注意：** HelmChart `spec.set` 值覆盖 HelmChart 和 HelmChartConfig `spec.valuesContent`设置。
 
-For example, to customize the packaged CoreDNS configuration, you can create a file named `/var/lib/rancher/rke2/server/manifests/rke2-coredns-config.yaml` and populate it with the following content:
+例如，为了自定义打包的 CoreDNS 配置，你可以创建一个名为`/var/lib/rancher/rke2/server/manifests/rke2-coredns-config.yaml`的文件，并用以下内容填充它：
 
 ```yaml
 apiVersion: helm.cattle.io/v1

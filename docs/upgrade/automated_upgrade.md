@@ -1,40 +1,43 @@
-# Automated Upgrades
+# 自动升级
 
-### Overview
+### 概述
 
-You can manage rke2 cluster upgrades using Rancher's system-upgrade-controller. This is a Kubernetes-native approach to cluster upgrades. It leverages a [custom resource definition (CRD)](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/#custom-resources), the `plan`, and a [controller](https://kubernetes.io/docs/concepts/architecture/controller/) that schedules upgrades based on the configured plans.
+你可以使用 Rancher 的 system-upgrade-controller 来管理 rke2 集群的升级。这是一种 Kubernetes 原生的集群升级方法。它利用[自定义资源定义（CRD）](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/#custom-resources)、`计划` 和[控制器](https://kubernetes.io/docs/concepts/architecture/controller/)，根据配置的计划来安排升级。
 
-A plan defines upgrade policies and requirements. This documentation will provide plans with defaults appropriate for upgrading a rke2 cluster. For more advanced plan configuration options, please review the [CRD](https://github.com/rancher/system-upgrade-controller/blob/master/pkg/apis/upgrade.cattle.io/v1/types.go).
+一个计划定义了升级策略和要求。本文档将提供适合升级 rke2 集群的默认计划。对于更高级的计划配置选项，请查阅[CRD](https://github.com/rancher/system-upgrade-controller/blob/master/pkg/apis/upgrade.cattle.io/v1/types.go)。
 
-The controller schedules upgrades by monitoring plans and selecting nodes to run upgrade [jobs](https://kubernetes.io/docs/concepts/workloads/controllers/jobs-run-to-completion/) on. A plan defines which nodes should be upgraded through a [label selector](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/). When a job has run to completion successfully, the controller will label the node on which it ran accordingly.
+控制器通过监控计划和选择节点来运行升级[job](https://kubernetes.io/docs/concepts/workloads/controllers/jobs-run-to-completion/)来安排升级。一个计划通过一个[标签选择器](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/)定义哪些节点应该被升级。当一个 job 成功运行完成后，控制器将对运行该 job 的节点进行相应的标记。
 
->**Note:** The upgrade job that is launched must be highly privileged. It is configured with the following:
->
-- Host `IPC`, `NET`, and `PID` namespaces
-- The `CAP_SYS_BOOT` capability
-- Host root mounted at `/host` with read and write permissions
+> **注意：** 启动的升级 job 必须具有高权限。它配置如下：
 
-For more details on the design and architecture of the system-upgrade-controller or its integration with rke2, see the following Git repositories:
+- 主机`IPC`、`NET`和`PID`命名空间
+- `CAP_SYS_BOOT`能力
+- 主机根目录安装在`/host`，有读写权限
+
+关于 system-upgrade-controller 的设计和架构或其与 rke2 集成的更多细节，请参见以下 Git 仓库。
 
 - [system-upgrade-controller](https://github.com/rancher/system-upgrade-controller)
 - [rke2-upgrade](https://github.com/rancher/rke2-upgrade)
 
-To automate upgrades in this manner you must:
+要以这种方式自动升级，你必须：
 
-1. Install the system-upgrade-controller into your cluster
-1. Configure plans
+1. 在你的集群中安装 system-upgrade-controller
+1. 配置计划
 
+### 安装 system-upgrade-controller
 
-### Install the system-upgrade-controller
-The system-upgrade-controller can be installed as a deployment into your cluster. The deployment requires a service-account, clusterRoleBinding, and a configmap. To install these components, run the following command:
+system-upgrade-controller 可以通过 deployment 的方式安装到你的集群中。该 deployment 需要一个 service-account、clusterRoleBinding 和 configmap。要安装这些组件，请运行以下命令：
+
 ```
 kubectl apply -f https://github.com/rancher/system-upgrade-controller/releases/download/v0.6.2/system-upgrade-controller.yaml
 ```
-The controller can be configured and customized via the previously mentioned configmap, but the controller must be redeployed for the changes to be applied.
 
+可以通过前面提到的 configmap 来配置和自定义控制器，但必须重新部署控制器才能应用这些变化。
 
-### Configure plans
-It is recommended that you minimally create two plans: a plan for upgrading server (master) nodes and a plan for upgrading agent (worker) nodes. As needed, you can create additional plans to control the rollout of the upgrade across nodes. The following two example plans will upgrade your cluster to rke2 v1.17.4+k3s1. Once the plans are created, the controller will pick them up and begin to upgrade your cluster.
+### 配置计划
+
+建议你至少创建两个计划：一个用于升级 server(master)节点的计划，一个用于升级 agent(worker)节点的计划。根据需要，你可以创建额外的计划来控制各节点的升级。下面的两个计划例子将把你的集群升级到 rke2 v1.17.4+k3s1。一旦计划被创建，控制器将接收它们并开始升级你的集群。
+
 ```
 # Server plan
 apiVersion: upgrade.cattle.io/v1
@@ -90,18 +93,18 @@ spec:
 
 ```
 
+关于这些计划，有几件重要的事情需要指出。
 
-There are a few important things to call out regarding these plans:
+首先，计划必须在部署控制器的同一命名空间中创建。
 
-First, the plans must be created in the same namespace where the controller was deployed.
+第二，`concurrency` 字段表明有多少节点可以同时被升级。
 
-Second, the `concurrency` field indicates how many nodes can be upgraded at the same time. 
+第三，server-plan 通过指定一个标签选择器，选择具有 `node-role.kubernetes.io/master` 标签的节点，来锁定 server 节点。agent-plan 通过指定一个标签选择器，选择没有这个标签的节点，来锁定 agent 节点。
 
-Third, the server-plan targets server nodes by specifying a label selector that selects nodes with the `node-role.kubernetes.io/master` label. The agent-plan targets agent nodes by specifying a label selector that select nodes without that label.
+第四，agent 计划中的 `prepare` 步骤将导致该计划的升级作业在执行前等待 server 计划的完成。
 
-Fourth, the `prepare` step in the agent-plan will cause upgrade jobs for that plan to wait for the server-plan to complete before they execute.
+第五，两个计划的 `version` 字段都设置为 v1.18.9+rke2。另外，你可以省略`version`字段，将`channel`字段设置为一个 URL，该 URL 可解析为 rke2 的一个版本。这将导致控制器监控该 URL，并在它解析到新版本时升级集群。这与[release channels](basic_upgrade.md/#release-channels)配合得很好。因此，你可以用以下 channels 配置你的计划，以确保你的集群总是自动升级到最新的 rke2 稳定版本。
 
-Fifth, both plans have the `version` field set to v1.18.9+rke2. Alternatively, you can omit the `version` field and set the `channel` field to a URL that resolves to a release of rke2. This will cause the controller to monitor that URL and upgrade the cluster any time it resolves to a new release. This works well with the [release channels](basic_upgrade.md/#release-channels). Thus, you can configure your plans with the following channel to ensure your cluster is always automatically upgraded to the newest stable release of rke2:
 ```
 apiVersion: upgrade.cattle.io/v1
 kind: Plan
@@ -112,9 +115,10 @@ spec:
 
 ```
 
-As stated, the upgrade will begin as soon as the controller detects that a plan was created. Updating a plan will cause the controller to re-evaluate the plan and determine if another upgrade is needed.
+如前所述，一旦控制器检测到计划被创建，升级就会开始。更新计划将导致控制器重新评估计划，并决定是否需要再次升级。
 
-You can monitor the progress of an upgrade by viewing the plan and jobs via kubectl:
+你可以通过 kubectl 查看计划和 job 来监控升级的进度。
+
 ```
 kubectl -n system-upgrade get plans -o yaml
 kubectl -n system-upgrade get jobs -o yaml

@@ -1,28 +1,28 @@
 ---
-title: CIS Self-Assessment Guide
+title: CIS自我评估指南
 ---
 
-### CIS Kubernetes Benchmark v1.5 - RKE2 v1.18
+### CIS Kubernetes基准测试 v1.5 - RKE2 v1.18
 
-#### Overview
+#### 概述
 
-This document is a companion to the RKE2 security hardening guide. The hardening guide provides prescriptive guidance for hardening a production installation of RKE2, and this benchmark guide is meant to help you evaluate the level of security of the hardened cluster against each control in the CIS Kubernetes benchmark. It is to be used by RKE2 operators, security teams, auditors, and decision makers.
+本文件是RKE2安全加固指南的配套文件。硬化指南为RKE2的生产安装提供了规范性的指导，而本基准指南旨在帮助你根据CIS Kubernetes基准中的每一项控制来评估硬化后的集群的安全水平。它将被RKE2运营商、安全团队、审计师和决策者使用。
 
-This guide is specific to the **v1.18** release line of RKE2 and the **v1.5.1** release of the CIS Kubernetes Benchmark.
+本指南是针对RKE2的**v1.18**版本和CIS Kubernetes基准的**v1.5.1**版本。
 
-For more detail about each control, including more detailed descriptions and remediations for failing tests, you can refer to the corresponding section of the CIS Kubernetes Benchmark v1.5. You can download the benchmark after logging in to [CISecurity.org]( https://www.cisecurity.org/benchmark/kubernetes/).
+关于每个控制的更多细节，包括更详细的描述和测试失败的补救措施，你可以参考CIS Kubernetes Benchmark v1.5的相应部分。你可以在登录[CISecurity.org](https://www.cisecurity.org/benchmark/kubernetes/)后下载该基准。
 
-#### Testing controls methodology
+#### 测试控制方法
 
-Each control in the CIS Kubernetes Benchmark was evaluated against an RKE2 cluster that was configured according to the accompanying hardening guide.
+CIS Kubernetes基准中的每一项控制都是针对根据附带的加固指南配置的RKE2集群进行评估的。
 
-Where control audits differ from the original CIS benchmark, the audit commands specific to RKE2 are provided for testing.
+在控制审计与原始CIS基准不同的地方，提供了RKE2特有的审计命令供测试。
 
-These are the possible results for each control:
+以下是每个控制的可能结果：
 
-- **Pass** - The RKE2 cluster under test passed the audit outlined in the benchmark.
-- **Not Applicable** - The control is not applicable to RKE2 because of how it is designed to operate. The remediation section will explain why this is so.
-- **Not Scored - Operator Dependent** - The control is not scored in the CIS benchmark and it depends on the cluster's use case or some other factor that must be determined by the cluster operator. These controls have been evaluated to ensure RKE2 does not prevent their implementation, but no further configuration or auditing of the cluster under test has been performed.
+- **通过** - 被测试的RKE2集群通过了基准中概述的审计。
+- **不适用** - 由于RKE2的设计运行方式，该控制不适用。补救措施部分将解释为什么会这样。
+- **不得分 - 取决于操作者** - 该控制在CIS基准中没有得分，它取决于集群的用例或其他一些必须由集群操作者决定的因素。这些控制已被评估，以确保RKE2不会阻止其实施，但没有对被测集群进行进一步配置或审计。
 
 ### Controls
 
