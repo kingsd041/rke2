@@ -30,9 +30,10 @@ rke2 server --cluster-reset
 
 When RKE2 is restored from backup, the old data directory will be moved to `/var/lib/rancher/rke2/server/db/etcd-old-%date%/`. Then RKE2 will attempt to restore the snapshot by creating a new data directory, then starting etcd with a new RKE2 cluster with one etcd member.
 
-To restore the cluster from backup, run RKE2 with the `--cluster-reset` option, with the `--cluster-reset-restore-path` also given:
+To restore the cluster from backup, first you need to stop RKE2 service if its enabled via systemd. Once stopped, run RKE2 with the `--cluster-reset` option, with the `--cluster-reset-restore-path` also given:
 
 ```
+systemctl stop rke2-server
 rke2 server \
   --cluster-reset \
   --cluster-reset-restore-path=<PATH-TO-SNAPSHOT>
@@ -40,7 +41,7 @@ rke2 server \
 
 **Result:**  A message in the logs says that RKE2 can be restarted without the flags. Start RKE2 again and should run successfully and be restored from the specified snapshot.
 
-When rke2 resets the cluster, it creates a file at `/var/lib/rancher/rke2/server/db/etc/reset-file`. If you want to reset the cluster again, you will need to delete this file.
+When rke2 resets the cluster, it creates an empty file at `/var/lib/rancher/rke2/server/db/reset-flag`. This file is harmless to leave in place, but must be removed in order to perform subsequent resets or restores. This file is deleted when rke2 starts normally.
 
 ### Options
 
