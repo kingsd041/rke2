@@ -4,8 +4,10 @@ set -ex
 cd $(dirname $0)/..
 
 source ./scripts/version.sh
+
 mkdir -p dist/{artifacts,bundle}
+
 ./scripts/package-binary
+./scripts/package-windows-binary
 ./scripts/package-bundle
-./scripts/package-images
-./scripts/build-upload dist/artifacts/${RELEASE}.tar.gz dist/artifacts/${PROG}-images.${PLATFORM}.tar.zst ${COMMIT}
+./scripts/package-windows-bundle

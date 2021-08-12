@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 
 	"github.com/containerd/continuity/fs"
@@ -35,6 +36,7 @@ import (
 
 var (
 	releasePattern = regexp.MustCompile("^v[0-9]")
+	ps             = string(os.PathSeparator)
 )
 
 // binDirForDigest returns the path to dataDir/data/refDigest/bin.
@@ -129,7 +131,14 @@ func Stage(resolver *images.Resolver, nodeConfig *daemonconfig.Node, cfg cmds.Ag
 			multiKeychain := authn.NewMultiKeychain(kcs...)
 
 			logrus.Infof("Pulling runtime image %s", ref.Name())
-			img, err = remote.Image(registry.Rewrite(ref), remote.WithAuthFromKeychain(multiKeychain), remote.WithTransport(registry))
+			img, err = remote.Image(registry.Rewrite(ref),
+				remote.WithAuthFromKeychain(multiKeychain),
+				remote.WithTransport(registry),
+				remote.WithPlatform(v1.Platform{
+					Architecture: runtime.GOARCH,
+					OS:           runtime.GOOS,
+				}),
+			)
 			if err != nil {
 				return "", errors.Wrapf(err, "failed to get runtime image %s", ref.Name())
 			}
@@ -137,8 +146,8 @@ func Stage(resolver *images.Resolver, nodeConfig *daemonconfig.Node, cfg cmds.Ag
 
 		// Extract binaries and charts
 		extractPaths := map[string]string{
-			"/bin":    refBinDir,
-			"/charts": refChartsDir,
+			ps + "bin":    refBinDir,
+			ps + "charts": refChartsDir,
 		}
 		if err := extract.ExtractDirs(img, extractPaths); err != nil {
 			return "", errors.Wrap(err, "failed to extract runtime image")

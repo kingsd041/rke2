@@ -75,7 +75,7 @@ var (
 		"disable-scheduler":                 copy,
 		"disable-cloud-controller":          copy,
 		"disable-network-policy":            drop,
-		"disable-kube-proxy":                drop,
+		"disable-kube-proxy":                copy,
 		"disable-apiserver":                 copy,
 		"disable-controller-manager":        copy,
 		"disable-etcd":                      copy,
@@ -101,7 +101,7 @@ var (
 		"flannel-iface":                     drop,
 		"flannel-conf":                      drop,
 		"kubelet-arg":                       copy,
-		"kube-proxy-arg":                    drop,
+		"kube-proxy-arg":                    copy,
 		"rootless":                          drop,
 		"agent-token":                       copy,
 		"agent-token-file":                  copy,
@@ -126,6 +126,7 @@ var (
 		"etcd-s3-bucket":                    copy,
 		"etcd-s3-region":                    copy,
 		"etcd-s3-folder":                    copy,
+		"disable-helm-controller":           drop,
 	})
 )
 

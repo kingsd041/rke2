@@ -10,42 +10,65 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-
-	containerdk3s "github.com/rancher/k3s/pkg/agent/containerd"
-	"github.com/rancher/rke2/pkg/controllers/cisnetworkpolicy"
-	"github.com/sirupsen/logrus"
-
 	"github.com/rancher/k3s/pkg/agent/config"
+	containerdk3s "github.com/rancher/k3s/pkg/agent/containerd"
 	"github.com/rancher/k3s/pkg/cli/agent"
 	"github.com/rancher/k3s/pkg/cli/cmds"
 	"github.com/rancher/k3s/pkg/cli/etcdsnapshot"
 	"github.com/rancher/k3s/pkg/cli/server"
-	"github.com/rancher/k3s/pkg/cluster/managed"
 	daemonconfig "github.com/rancher/k3s/pkg/daemons/config"
 	"github.com/rancher/k3s/pkg/daemons/executor"
-	"github.com/rancher/k3s/pkg/etcd"
 	rawServer "github.com/rancher/k3s/pkg/server"
-	"github.com/rancher/rke2/pkg/cli/defaults"
+	"github.com/rancher/rke2/pkg/controllers/cisnetworkpolicy"
 	"github.com/rancher/rke2/pkg/images"
-	"github.com/rancher/rke2/pkg/podexecutor"
+	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 )
 
 type Config struct {
-	AuditPolicyFile     string
-	CloudProviderConfig string
-	CloudProviderName   string
-	Images              images.ImageOverrideConfig
-	KubeletPath         string
+	AuditPolicyFile              string
+	CloudProviderConfig          string
+	CloudProviderName            string
+	Images                       images.ImageOverrideConfig
+	KubeletPath                  string
+	ControlPlaneResourceRequests string
+	ControlPlaneResourceLimits   string
+	ExtraMounts                  ExtraMounts
+	ExtraEnv                     ExtraEnv
 }
 
+type ExtraMounts struct {
+	KubeAPIServer          cli.StringSlice
+	KubeScheduler          cli.StringSlice
+	KubeControllerManager  cli.StringSlice
+	KubeProxy              cli.StringSlice
+	Etcd                   cli.StringSlice
+	CloudControllerManager cli.StringSlice
+}
+
+type ExtraEnv struct {
+	KubeAPIServer          cli.StringSlice
+	KubeScheduler          cli.StringSlice
+	KubeControllerManager  cli.StringSlice
+	KubeProxy              cli.StringSlice
+	Etcd                   cli.StringSlice
+	CloudControllerManager cli.StringSlice
+}
+
+// Valid CIS Profile versions
 const (
 	CISProfile15           = "cis-1.5"
 	CISProfile16           = "cis-1.6"
 	defaultAuditPolicyFile = "/etc/rancher/rke2/audit-policy.yaml"
 	containerdSock         = "/run/k3s/containerd/containerd.sock"
+	KubeAPIServer          = "kube-apiserver"
+	KubeScheduler          = "kube-scheduler"
+	KubeControllerManager  = "kube-controller-manager"
+	KubeProxy              = "kube-proxy"
+	Etcd                   = "etcd"
+	CloudControllerManager = "cloud-controller-manager"
 )
 
 func Server(clx *cli.Context, cfg Config) error {
@@ -66,17 +89,23 @@ func Server(clx *cli.Context, cfg Config) error {
 		}
 	}
 	cisMode := isCISMode(clx)
-
+	var defaultNamespaces = []string{
+		metav1.NamespaceSystem,
+		metav1.NamespaceDefault,
+		metav1.NamespacePublic,
+	}
 	cmds.ServerConfig.StartupHooks = append(cmds.ServerConfig.StartupHooks,
 		setPSPs(cisMode),
-		setNetworkPolicies(cisMode),
+		setNetworkPolicies(cisMode, defaultNamespaces),
 		setClusterRoles(),
+		restrictServiceAccounts(cisMode, defaultNamespaces),
+		setKubeProxyDisabled(&cmds.ServerConfig),
 	)
 
 	var leaderControllers rawServer.CustomControllers
 
 	if cisMode {
-		leaderControllers = append(leaderControllers, cisnetworkpolicy.CISNetworkPolicyController)
+		leaderControllers = append(leaderControllers, cisnetworkpolicy.Controller)
 	}
 
 	return server.RunWithControllers(clx, leaderControllers, rawServer.CustomControllers{})
@@ -100,70 +129,21 @@ func setup(clx *cli.Context, cfg Config, isServer bool) error {
 	disableScheduler := clx.Bool("disable-scheduler")
 	disableAPIServer := clx.Bool("disable-apiserver")
 	disableControllerManager := clx.Bool("disable-controller-manager")
+	disableCloudControllerManager := clx.Bool("disable-cloud-controller")
 	clusterReset := clx.Bool("cluster-reset")
 
-	auditPolicyFile := clx.String("audit-policy-file")
-	if auditPolicyFile == "" {
-		auditPolicyFile = defaultAuditPolicyFile
-	}
-
-	// This flag will only be set on servers, on agents this is a no-op and the
-	// resolver's default registry will get updated later when bootstrapping
-	cfg.Images.SystemDefaultRegistry = clx.String("system-default-registry")
-	resolver, err := images.NewResolver(cfg.Images)
+	ex, err := initExecutor(clx, cfg, dataDir, disableETCD, isServer)
 	if err != nil {
 		return err
 	}
-
-	if err := defaults.Set(clx, dataDir); err != nil {
-		return err
-	}
-
-	agentManifestsDir := filepath.Join(dataDir, "agent", config.DefaultPodManifestPath)
-	agentImagesDir := filepath.Join(dataDir, "agent", "images")
-
-	managed.RegisterDriver(&etcd.ETCD{})
-
-	if clx.IsSet("cloud-provider-config") || clx.IsSet("cloud-provider-name") {
-		if clx.IsSet("node-external-ip") {
-			return errors.New("can't set node-external-ip while using cloud provider")
-		}
-		cmds.ServerConfig.DisableCCM = true
-	}
-	var cpConfig *podexecutor.CloudProviderConfig
-	if cfg.CloudProviderConfig != "" && cfg.CloudProviderName == "" {
-		return fmt.Errorf("--cloud-provider-config requires --cloud-provider-name to be provided")
-	}
-	if cfg.CloudProviderName != "" {
-		cpConfig = &podexecutor.CloudProviderConfig{
-			Name: cfg.CloudProviderName,
-			Path: cfg.CloudProviderConfig,
-		}
-	}
-
-	if cfg.KubeletPath == "" {
-		cfg.KubeletPath = "kubelet"
-	}
-
-	sp := podexecutor.StaticPodConfig{
-		Resolver:        resolver,
-		ImagesDir:       agentImagesDir,
-		ManifestsDir:    agentManifestsDir,
-		CISMode:         isCISMode(clx),
-		CloudProvider:   cpConfig,
-		DataDir:         dataDir,
-		AuditPolicyFile: auditPolicyFile,
-		KubeletPath:     cfg.KubeletPath,
-		DisableETCD:     disableETCD,
-		IsServer:        isServer,
-	}
-	executor.Set(&sp)
+	executor.Set(ex)
 
 	disabledItems := map[string]bool{
-		"kube-apiserver":          disableAPIServer,
-		"kube-scheduler":          disableScheduler,
-		"kube-controller-manager": disableControllerManager,
-		"etcd":                    disableETCD,
+		"kube-apiserver":           disableAPIServer,
+		"kube-scheduler":           disableScheduler,
+		"kube-controller-manager":  disableControllerManager,
+		"cloud-controller-manager": disableCloudControllerManager,
+		"etcd":                     disableETCD,
 	}
 	return removeOldPodManifests(dataDir, disabledItems, clusterReset)
 }

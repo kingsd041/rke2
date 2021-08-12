@@ -2,7 +2,7 @@
 
 By default RKE2 runs Canal as the cni with VXLAN as the default backend, Canal is installed via a helm chart after the main components are up and running and can be customized by modifying the helm chart options.
 
-Optionally, Cilium might be used as the cni instead of Canal.
+Optionally, Cilium or Calico might be used as the cni instead of Canal.
 
 # Canal Options
 
@@ -57,7 +57,9 @@ Any CNI plugin can be used as secondary CNI plugin for Multus to provide additio
 
 To use any of these plugins, a proper NetworkAttachmentDefinition object will need to be created to define the configuration of the secondary network. The definition is then referenced by pod annotations, which Multus will use to provide extra interfaces to that pod. An example using the macvlan cni plugin with Mu is available [in the multus-cni repo](https://github.com/k8snetworkplumbingwg/multus-cni/blob/master/docs/quickstart.md#storing-a-configuration-as-a-custom-resource).
 
-## Using Multus with SR-IOV
+## Using Multus with SR-IOV (experimental)
+
+**Please note this is an experimental feature introduced with v1.21.2+rke2r1.**
 
 Using the SR-IOV CNI with Multus can help with data-plane acceleration use cases, providing an extra interface in the pod that can achieve very high throughput. SR-IOV will not work in all environments, and there are several requirements that must be fulfilled to consider the node as SR-IOV capable:
 

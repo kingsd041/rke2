@@ -3,7 +3,9 @@ package rke2
 import (
 	"context"
 	"fmt"
+	"sync"
 
+	"github.com/rancher/k3s/pkg/cli/cmds"
 	"github.com/sirupsen/logrus"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -12,19 +14,24 @@ import (
 
 // setClusterRoles applies common clusterroles and clusterrolebindings that are critical
 // to the function of internal controllers.
-func setClusterRoles() func(context.Context, <-chan struct{}, string) error {
-	return func(ctx context.Context, apiServerReady <-chan struct{}, kubeConfigAdmin string) error {
+func setClusterRoles() cmds.StartupHook {
+	return func(ctx context.Context, wg *sync.WaitGroup, args cmds.StartupHookArgs) error {
 		go func() {
-			<-apiServerReady
+			defer wg.Done()
+			<-args.APIServerReady
 			logrus.Info("Applying Cluster Role Bindings")
 
-			cs, err := newClient(kubeConfigAdmin, nil)
+			cs, err := newClient(args.KubeConfigAdmin, nil)
 			if err != nil {
 				logrus.Fatalf("clusterrole: new k8s client: %s", err.Error())
 			}
 
 			if err := setKubeletAPIServerRoleBinding(ctx, cs); err != nil {
 				logrus.Fatalf("psp: set kubeletAPIServerRoleBinding: %s", err.Error())
+			}
+
+			if err := setKubeProxyServerRoleBinding(ctx, cs); err != nil {
+				logrus.Fatalf("psp: set kubeProxyServerRoleBinding: %s", err.Error())
 			}
 
 			if err := setTunnelControllerRoleBinding(ctx, cs); err != nil {
@@ -59,6 +66,39 @@ func setKubeletAPIServerRoleBinding(ctx context.Context, cs *kubernetes.Clientse
 	return nil
 }
 
+// setKubeProxyServerRoleBinding creates the clusterrole and clusterrolebinding that grants the kube-proxy access to the kubelet API
+func setKubeProxyServerRoleBinding(ctx context.Context, cs *kubernetes.Clientset) error {
+	// check if clusterrole exists
+	if _, err := cs.RbacV1().ClusterRoles().Get(ctx, kubeProxyRoleName, metav1.GetOptions{}); err != nil {
+		if apierrors.IsNotFound(err) {
+			logrus.Infof("Setting Cluster Role: %s", kubeProxyRoleName)
+
+			tmpl := fmt.Sprintf(kubeProxyRoleTemplate, kubeProxyRoleName)
+			if err := deployClusterRoleFromYaml(ctx, cs, tmpl); err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+	}
+
+	// check if clusterrolebinding exists
+	if _, err := cs.RbacV1().ClusterRoleBindings().Get(ctx, kubeProxyRoleName, metav1.GetOptions{}); err != nil {
+		if apierrors.IsNotFound(err) {
+			logrus.Infof("Setting Cluster RoleBinding: %s", kubeProxyRoleName)
+
+			tmpl := fmt.Sprintf(kubeProxyServerRoleBindingTemplate, kubeProxyRoleName)
+			if err := deployClusterRoleBindingFromYaml(ctx, cs, tmpl); err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // setTunnelControllerRoleBinding creates the clusterrole and clusterrolebinding used by internal controllers
 // such as the agent tunnel controller
 func setTunnelControllerRoleBinding(ctx context.Context, cs *kubernetes.Clientset) error {
@@ -81,7 +121,7 @@ func setTunnelControllerRoleBinding(ctx context.Context, cs *kubernetes.Clientse
 		if apierrors.IsNotFound(err) {
 			logrus.Infof("Setting Cluster RoleBinding: %s", tunnelControllerRoleName)
 
-			tmpl := fmt.Sprintf(tunnelControllerRoleBindingTemplate, tunnelControllerRoleName, tunnelControllerRoleName)
+			tmpl := fmt.Sprintf(tunnelControllerRoleBindingTemplate, tunnelControllerRoleName)
 			if err := deployClusterRoleBindingFromYaml(ctx, cs, tmpl); err != nil {
 				return err
 			}

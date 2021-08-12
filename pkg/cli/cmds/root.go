@@ -35,6 +35,12 @@ var (
 			Destination: &config.Images.KubeControllerManager,
 		},
 		&cli.StringFlag{
+			Name:        images.KubeProxy,
+			Usage:       "(image) Override image to use for kube-proxy",
+			EnvVar:      "RKE2_KUBE_PROXY_IMAGE",
+			Destination: &config.Images.KubeProxy,
+		},
+		&cli.StringFlag{
 			Name:        images.KubeScheduler,
 			Usage:       "(image) Override image to use for kube-scheduler",
 			EnvVar:      "RKE2_KUBE_SCHEDULER_IMAGE",
@@ -87,10 +93,96 @@ var (
 			EnvVar:      "RKE2_AUDIT_POLICY_FILE",
 			Destination: &config.AuditPolicyFile,
 		},
+		&cli.StringFlag{
+			Name:        "control-plane-resource-requests",
+			Usage:       "(components) Control Plane resource requests",
+			EnvVar:      "RKE2_CONTROL_PLANE_RESOURCE_REQUESTS",
+			Destination: &config.ControlPlaneResourceRequests,
+		},
+		&cli.StringFlag{
+			Name:        "control-plane-resource-limits",
+			Usage:       "(components) Control Plane resource limits",
+			EnvVar:      "RKE2_CONTROL_PLANE_RESOURCE_LIMITS",
+			Destination: &config.ControlPlaneResourceLimits,
+		},
+		&cli.StringSliceFlag{
+			Name:   rke2.KubeAPIServer + "-extra-mount",
+			Usage:  "(components) " + rke2.KubeAPIServer + " extra volume mounts",
+			EnvVar: "RKE2_" + strings.ToUpper(strings.ReplaceAll(rke2.KubeAPIServer, "-", "_")) + "_EXTRA_MOUNT",
+			Value:  &config.ExtraMounts.KubeAPIServer,
+		},
+		&cli.StringSliceFlag{
+			Name:   rke2.KubeScheduler + "-extra-mount",
+			Usage:  "(components) " + rke2.KubeScheduler + " extra volume mounts",
+			EnvVar: "RKE2_" + strings.ToUpper(strings.ReplaceAll(rke2.KubeScheduler, "-", "_")) + "_EXTRA_MOUNT",
+			Value:  &config.ExtraMounts.KubeScheduler,
+		},
+		&cli.StringSliceFlag{
+			Name:   rke2.KubeControllerManager + "-extra-mount",
+			Usage:  "(components) " + rke2.KubeControllerManager + " extra volume mounts",
+			EnvVar: "RKE2_" + strings.ToUpper(strings.ReplaceAll(rke2.KubeControllerManager, "-", "_")) + "_EXTRA_MOUNT",
+			Value:  &config.ExtraMounts.KubeControllerManager,
+		},
+		&cli.StringSliceFlag{
+			Name:   rke2.KubeProxy + "-extra-mount",
+			Usage:  "(components) " + rke2.KubeProxy + " extra volume mounts",
+			EnvVar: "RKE2_" + strings.ToUpper(strings.ReplaceAll(rke2.KubeProxy, "-", "_")) + "_EXTRA_MOUNT",
+			Value:  &config.ExtraMounts.KubeProxy,
+		},
+		&cli.StringSliceFlag{
+			Name:   rke2.Etcd + "-extra-mount",
+			Usage:  "(components) " + rke2.Etcd + " extra volume mounts",
+			EnvVar: "RKE2_" + strings.ToUpper(strings.ReplaceAll(rke2.Etcd, "-", "_")) + "_EXTRA_MOUNT",
+			Value:  &config.ExtraMounts.Etcd,
+		},
+		&cli.StringSliceFlag{
+			Name:   rke2.CloudControllerManager + "-extra-mount",
+			Usage:  "(components) " + rke2.CloudControllerManager + " extra volume mounts",
+			EnvVar: "RKE2_" + strings.ToUpper(strings.ReplaceAll(rke2.CloudControllerManager, "-", "_")) + "_EXTRA_MOUNT",
+			Value:  &config.ExtraMounts.CloudControllerManager,
+		},
+		&cli.StringSliceFlag{
+			Name:   rke2.KubeAPIServer + "-extra-env",
+			Usage:  "(components) " + rke2.KubeAPIServer + " extra environment variables",
+			EnvVar: "RKE2_" + strings.ToUpper(strings.ReplaceAll(rke2.KubeAPIServer, "-", "_")) + "_EXTRA_ENV",
+			Value:  &config.ExtraEnv.KubeAPIServer,
+		},
+		&cli.StringSliceFlag{
+			Name:   rke2.KubeScheduler + "-extra-env",
+			Usage:  "(components) " + rke2.KubeScheduler + " extra environment variables",
+			EnvVar: "RKE2_" + strings.ToUpper(strings.ReplaceAll(rke2.KubeScheduler, "-", "_")) + "_EXTRA_ENV",
+			Value:  &config.ExtraEnv.KubeScheduler,
+		},
+		&cli.StringSliceFlag{
+			Name:   rke2.KubeControllerManager + "-extra-env",
+			Usage:  "(components) " + rke2.KubeControllerManager + " extra environment variables",
+			EnvVar: "RKE2_" + strings.ToUpper(strings.ReplaceAll(rke2.KubeControllerManager, "-", "_")) + "_EXTRA_ENV",
+			Value:  &config.ExtraEnv.KubeControllerManager,
+		},
+		&cli.StringSliceFlag{
+			Name:   rke2.KubeProxy + "-extra-env",
+			Usage:  "(components) " + rke2.KubeProxy + " extra environment variables",
+			EnvVar: "RKE2_" + strings.ToUpper(strings.ReplaceAll(rke2.KubeProxy, "-", "_")) + "_EXTRA_ENV",
+			Value:  &config.ExtraEnv.KubeProxy,
+		},
+		&cli.StringSliceFlag{
+			Name:   rke2.Etcd + "-extra-env",
+			Usage:  "(components) " + rke2.Etcd + " extra environment variables",
+			EnvVar: "RKE2_" + strings.ToUpper(strings.ReplaceAll(rke2.Etcd, "-", "_")) + "_EXTRA_ENV",
+			Value:  &config.ExtraEnv.Etcd,
+		},
+		&cli.StringSliceFlag{
+			Name:   rke2.CloudControllerManager + "-extra-env",
+			Usage:  "(components) " + rke2.CloudControllerManager + " extra environment variables",
+			EnvVar: "RKE2_" + strings.ToUpper(strings.ReplaceAll(rke2.CloudControllerManager, "-", "_")) + "_EXTRA_ENV",
+			Value:  &config.ExtraEnv.CloudControllerManager,
+		},
 	}
 )
 
-const pkdFlagName = "protect-kernel-defaults"
+const (
+	protectKernelDefaultsFlagName = "protect-kernel-defaults"
+)
 
 func init() {
 	// hack - force "file,dns" lookup order if go dns is used
@@ -173,10 +265,10 @@ func validateCISReqs(nodeType string) error {
 // compliance with the profile.
 func setCISFlags(clx *cli.Context) error {
 	// If the user has specifically set this to false, raise an error
-	if clx.IsSet(pkdFlagName) && !clx.Bool(pkdFlagName) {
-		return fmt.Errorf("--%s must be true when using --profile=%s", pkdFlagName, clx.String("profile"))
+	if clx.IsSet(protectKernelDefaultsFlagName) && !clx.Bool(protectKernelDefaultsFlagName) {
+		return fmt.Errorf("--%s must be true when using --profile=%s", protectKernelDefaultsFlagName, clx.String("profile"))
 	}
-	return clx.Set(pkdFlagName, "true")
+	return clx.Set(protectKernelDefaultsFlagName, "true")
 }
 
 func validateProfile(clx *cli.Context, nodeType string) {
@@ -197,7 +289,7 @@ func validateProfile(clx *cli.Context, nodeType string) {
 
 func validateCloudProviderName(clx *cli.Context) {
 	cloudProvider := clx.String("cloud-provider-name")
-	if cloudProvider == "vsphere" {
+	if cloudProvider == "rancher-vsphere" {
 		clx.Set("cloud-provider-name", "external")
 	} else {
 		if slice.ContainsString(clx.FlagNames(), "disable") {

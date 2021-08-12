@@ -23,9 +23,13 @@ dapper-ci: .ci                           ## Used by Drone CI, does the same as "
 build:                                   ## Build using host go tools
 	./scripts/build
 
-.PHONY: binary
-binary:                             	## Build only the binary using host go tools
+.PHONY: build-binary
+build-binary:                             	## Build only the Linux binary using host go tools
 	./scripts/build-binary
+
+.PHONY: build-windows-binary
+build-windows-binary:                       ## Build only the Windows binary using host go tools
+	./scripts/build-windows-binary
 
 .PHONY: build-debug
 build-debug:                             ## Debug build using host go tools
@@ -38,6 +42,10 @@ scan-images:
 .PHONY: build-images
 build-images:                             ## Build all images and image tarballs (including airgap)
 	./scripts/build-images
+
+.PHONY: build-windows-images
+build-windows-images:                     ## Build only the Windows images and tarballs (including airgap)
+	./scripts/build-windows-images
 
 .PHONY: build-image-kubernetes
 build-image-kubernetes:                   ## Build the kubernetes image
@@ -99,10 +107,6 @@ dev-peer: dev-shell-build              ## Launch a server peer to run test build
 dev-peer-enter:                         ## Enter the peer shell on another terminal
 	./scripts/dev-peer-enter
 
-.PHONY: publish-manifest-runtime
-publish-manifest-runtime: build-image-runtime					## Create and push the rke2-runtime manifest
-	./scripts/publish-manifest-runtime
-
 .PHONY: publish-manifest-kubernetes
 publish-manifest-kubernetes: build-image-kubernetes						## Create and push the kubernetes manifest
 	./scripts/publish-manifest-kubernetes
@@ -119,9 +123,17 @@ package: build 						## Package the rke2 binary
 package-images: build-images		## Package docker images for airgap environment
 	./scripts/package-images
 
+.PHONY: package-windows-images
+package-windows-images: build-windows-images		## Package Windows crane images for airgap environment
+	./scripts/package-windows-images
+
 .PHONY: package-bundle
 package-bundle: build				## Package the tarball bundle
 	./scripts/package-bundle
+
+.PHONY: package-windows-bundle
+package-windows-bundle: build				## Package the Windows tarball bundle
+	./scripts/package-windows-bundle
 
 .PHONY: test
 test: codespell-test unit-tests integration-tests

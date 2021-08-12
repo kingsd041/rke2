@@ -15,11 +15,16 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/rancher/k3s/pkg/cli/cmds"
 	"github.com/rancher/wrangler/pkg/yaml"
+	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/tools/clientcmd"
+)
+
+const (
+	extraMountPrefix = "extra-mount"
 )
 
 type Args struct {
@@ -31,9 +36,15 @@ type Args struct {
 	HealthPort      int32
 	HealthProto     string
 	HealthPath      string
-	CPUMillis       int64
+	CPURequest      string
+	CPULimit        string
+	MemoryRequest   string
+	MemoryLimit     string
+	ExtraMounts     []string
+	ExtraEnv        []string
 	SecurityContext *v1.PodSecurityContext
 	Annotations     map[string]string
+	Privileged      bool
 }
 
 func Run(dir string, args Args) error {
@@ -121,6 +132,9 @@ func pod(args Args) (*v1.Pod, error) {
 		Spec: v1.PodSpec{
 			Containers: []v1.Container{
 				{
+					SecurityContext: &v1.SecurityContext{
+						Privileged: &args.Privileged,
+					},
 					Command:         append([]string{args.Command}, args.Args...),
 					Image:           args.Image.Name(),
 					ImagePullPolicy: v1.PullIfNotPresent,
@@ -139,11 +153,40 @@ func pod(args Args) (*v1.Pod, error) {
 		},
 	}
 
-	if args.CPUMillis > 0 {
-		p.Spec.Containers[0].Resources = v1.ResourceRequirements{
-			Requests: v1.ResourceList{
-				v1.ResourceCPU: *resource.NewMilliQuantity(args.CPUMillis, resource.DecimalSI),
-			},
+	p.Spec.Containers[0].Resources = v1.ResourceRequirements{}
+
+	p.Spec.Containers[0].Resources.Requests = v1.ResourceList{}
+	p.Spec.Containers[0].Resources.Limits = v1.ResourceList{}
+
+	if args.CPURequest != "" {
+		if cpuRequest, err := resource.ParseQuantity(args.CPURequest); err != nil {
+			logrus.Errorf("error parsing cpu request for static pod %s: %v", args.Command, err)
+		} else {
+			p.Spec.Containers[0].Resources.Requests[v1.ResourceCPU] = cpuRequest
+		}
+	}
+
+	if args.CPULimit != "" {
+		if cpuLimit, err := resource.ParseQuantity(args.CPULimit); err != nil {
+			logrus.Errorf("error parsing cpu limit for static pod %s: %v", args.Command, err)
+		} else {
+			p.Spec.Containers[0].Resources.Limits[v1.ResourceCPU] = cpuLimit
+		}
+	}
+
+	if args.MemoryRequest != "" {
+		if memoryRequest, err := resource.ParseQuantity(args.MemoryRequest); err != nil {
+			logrus.Errorf("error parsing memory request for static pod %s: %v", args.Command, err)
+		} else {
+			p.Spec.Containers[0].Resources.Requests[v1.ResourceMemory] = memoryRequest
+		}
+	}
+
+	if args.MemoryLimit != "" {
+		if memoryLimit, err := resource.ParseQuantity(args.MemoryLimit); err != nil {
+			logrus.Errorf("error parsing memory limit for static pod %s: %v", args.Command, err)
+		} else {
+			p.Spec.Containers[0].Resources.Limits[v1.ResourceMemory] = memoryLimit
 		}
 	}
 
@@ -193,6 +236,8 @@ func pod(args Args) (*v1.Pod, error) {
 	addVolumes(p, args.Dirs, true)
 	addVolumes(p, args.Files, false)
 
+	addExtraMounts(p, args.ExtraMounts)
+	addExtraEnv(p, args.ExtraEnv)
 	return p, nil
 }
 
@@ -227,12 +272,69 @@ func addVolumes(p *v1.Pod, src []string, dir bool) {
 	}
 }
 
+func addExtraMounts(p *v1.Pod, extraMounts []string) {
+	var (
+		sourceType = v1.HostPathDirectoryOrCreate
+	)
+
+	for i, rawMount := range extraMounts {
+		mount := strings.Split(rawMount, ":")
+		var ro bool
+		switch len(mount) {
+		case 2: // In the case of 2 elements, we expect this to be a traditional source:dest volume mount and should noop.
+		case 3:
+			switch strings.ToLower(mount[2]) {
+			case "ro":
+				ro = true
+			case "rw":
+				ro = false
+			default:
+				logrus.Errorf("unknown mount option: %s encountered in extra mount %s for pod %s", mount[2], rawMount, p.Name)
+				continue
+			}
+		default:
+			logrus.Errorf("mount for pod %s %s was not valid", p.Name, rawMount)
+			continue
+		}
+
+		name := fmt.Sprintf("%s-%d", extraMountPrefix, i)
+		p.Spec.Volumes = append(p.Spec.Volumes, v1.Volume{
+			Name: name,
+			VolumeSource: v1.VolumeSource{
+				HostPath: &v1.HostPathVolumeSource{
+					Path: mount[0],
+					Type: &sourceType,
+				},
+			},
+		})
+		p.Spec.Containers[0].VolumeMounts = append(p.Spec.Containers[0].VolumeMounts, v1.VolumeMount{
+			Name:      name,
+			ReadOnly:  ro,
+			MountPath: mount[1],
+		})
+	}
+}
+
+func addExtraEnv(p *v1.Pod, extraEnv []string) {
+	for _, rawEnv := range extraEnv {
+		env := strings.SplitN(rawEnv, "=", 2)
+		if len(env) != 2 {
+			logrus.Errorf("environment variable for pod %s %s was not valid", p.Name, rawEnv)
+			continue
+		}
+		p.Spec.Containers[0].Env = append(p.Spec.Containers[0].Env, v1.EnvVar{
+			Name:  env[0],
+			Value: env[1],
+		})
+	}
+}
+
 func readFiles(args []string) ([]string, error) {
 	files := map[string]bool{}
 
 	for _, arg := range args {
 		parts := strings.SplitN(arg, "=", 2)
-		if len(parts) == 2 && strings.HasPrefix(parts[1], "/") {
+		if len(parts) == 2 && strings.HasPrefix(parts[1], string(os.PathSeparator)) {
 			if stat, err := os.Stat(parts[1]); err == nil && !stat.IsDir() && !strings.Contains(parts[1], "audit.log") {
 				files[parts[1]] = true
 

@@ -3,6 +3,7 @@ package cmds
 import (
 	"github.com/rancher/k3s/pkg/cli/cmds"
 	"github.com/rancher/rke2/pkg/rke2"
+	"github.com/rancher/rke2/pkg/windows"
 	"github.com/urfave/cli"
 )
 
@@ -37,7 +38,7 @@ var (
 		"flannel-iface":                     drop,
 		"flannel-conf":                      drop,
 		"kubelet-arg":                       copy,
-		"kube-proxy-arg":                    drop,
+		"kube-proxy-arg":                    copy,
 		"rootless":                          drop,
 		"server":                            copy,
 		"no-flannel":                        drop,
@@ -62,11 +63,26 @@ func NewAgentCommand() cli.Command {
 	cmd := k3sAgentBase
 	cmd.Flags = append(cmd.Flags, commonFlag...)
 	cmd.Flags = append(cmd.Flags, deprecatedFlags...)
+	cmd.Subcommands = agentSubcommands()
 	return cmd
+}
+
+func agentSubcommands() cli.Commands {
+	subcommands := []cli.Command{
+		// subcommands used by both windows/linux, none yet
+	}
+
+	// linux/windows only subcommands
+	subcommands = append(subcommands, serviceSubcommand)
+
+	return subcommands
 }
 
 func AgentRun(clx *cli.Context) error {
 	validateCloudProviderName(clx)
 	validateProfile(clx, "agent")
+	if err := windows.StartService(); err != nil {
+		return err
+	}
 	return rke2.Agent(clx, config)
 }

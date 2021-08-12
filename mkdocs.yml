@@ -1,6 +1,8 @@
 site_name: RKE2 - Rancher's Next Generation Kubernetes Distribution
 repo_url: https://github.com/rancher/rke2
+site_url: https://docs.rke2.io
 strict: false
+use_directory_urls: true
 theme:
   name: material
   palette:
@@ -29,12 +31,15 @@ nav:
     - Install Options:
       - install/install_options/install_options.md
       - install/install_options/server_config.md
-      - install/install_options/agent_config.md
+      - install/install_options/linux_agent_config.md
+      - install/install_options/windows_agent_config.md
     - install/methods.md
     - install/network_options.md
     - install/containerd_registry_configuration.md
     - install/airgap.md
-    - install/uninstall.md
+    - install/windows_airgap.md
+    - install/linux_uninstall.md
+    - install/windows_uninstall.md
   - Upgrades:
     - Overview: upgrade/upgrade.md
     - upgrade/basic_upgrade.md
