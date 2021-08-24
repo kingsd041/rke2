@@ -201,6 +201,9 @@ setup_tmp() {
 
 # --- use desired rke2 version if defined or find version from channel ---
 get_release_version() {
+    if [ "${INSTALL_RKE2_MIRROR}" = cn ]; then
+        INSTALL_RKE2_VERSION=$( echo ${INSTALL_RKE2_VERSION} | sed 's/+/-/g' )
+    fi
     if [ -n "${INSTALL_RKE2_COMMIT}" ]; then
         version="commit ${INSTALL_RKE2_COMMIT}"
     elif [ -n "${INSTALL_RKE2_VERSION}" ]; then
