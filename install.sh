@@ -96,6 +96,9 @@ check_target_ro() {
 setup_env() {
     STORAGE_URL="https://rke2-ci-builds.s3.amazonaws.com"
     INSTALL_RKE2_GITHUB_URL="https://github.com/rancher/rke2"
+    if [ "${INSTALL_RKE2_MIRROR}" = cn ]; then
+        INSTALL_RKE2_GITHUB_URL="https://rancher-mirror.rancher.cn/rke2"
+    fi
     DEFAULT_TAR_PREFIX="/usr/local"
     # --- bail if we are not root ---
     if [ ! $(id -u) -eq 0 ]; then
@@ -222,6 +225,9 @@ setup_tmp() {
 
 # --- use desired rke2 version if defined or find version from channel ---
 get_release_version() {
+    if [ "${INSTALL_RKE2_MIRROR}" = cn ]; then
+        INSTALL_RKE2_VERSION=$( echo ${INSTALL_RKE2_VERSION} | sed 's/+/-/g' )
+    fi
     if [ -n "${INSTALL_RKE2_COMMIT}" ]; then
         version="commit ${INSTALL_RKE2_COMMIT}"
     elif [ -n "${INSTALL_RKE2_VERSION}" ]; then
@@ -229,19 +235,31 @@ get_release_version() {
     else
         info "finding release for channel ${INSTALL_RKE2_CHANNEL}"
         INSTALL_RKE2_CHANNEL_URL=${INSTALL_RKE2_CHANNEL_URL:-'https://update.rke2.io/v1-release/channels'}
+        if [ "${INSTALL_RKE2_MIRROR}" = cn ]; then
+            INSTALL_RKE2_CHANNEL_URL="https://rancher-mirror.oss-cn-beijing.aliyuncs.com/rke2/channels"
+        fi
         version_url="${INSTALL_RKE2_CHANNEL_URL}/${INSTALL_RKE2_CHANNEL}"
         case ${DOWNLOADER} in
         *curl)
             version=$(${DOWNLOADER} -w "%{url_effective}" -L -s -S "${version_url}" -o /dev/null | sed -e 's|.*/||')
+            if [ "${INSTALL_RKE2_MIRROR}" = cn ]; then
+                version=$(${DOWNLOADER} -s -S "${version_url}")
+            fi
             ;;
         *wget)
             version=$(${DOWNLOADER} -SqO /dev/null "${version_url}" 2>&1 | grep -i Location | sed -e 's|.*/||')
+            if [ "${INSTALL_RKE2_MIRROR}" = cn ]; then
+                version=$(${DOWNLOADER} -qO - "${version_url}")
+            fi
             ;;
         *)
             fatal "Unsupported downloader executable '${DOWNLOADER}'"
             ;;
         esac
         INSTALL_RKE2_VERSION="${version}"
+        if [ "${INSTALL_RKE2_MIRROR}" = cn ]; then
+            INSTALL_RKE2_VERSION=$( echo ${INSTALL_RKE2_VERSION} | sed 's/+/-/g')
+        fi
     fi
 }
 
