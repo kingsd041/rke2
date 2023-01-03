@@ -236,7 +236,7 @@ get_release_version() {
         info "finding release for channel ${INSTALL_RKE2_CHANNEL}"
         INSTALL_RKE2_CHANNEL_URL=${INSTALL_RKE2_CHANNEL_URL:-'https://update.rke2.io/v1-release/channels'}
         if [ "${INSTALL_RKE2_MIRROR}" = cn ]; then
-            INSTALL_RKE2_CHANNEL_URL="https://rancher-mirror.oss-cn-beijing.aliyuncs.com/rke2/channels"
+            INSTALL_RKE2_CHANNEL_URL="https://rancher-mirror.rancher.cn/rke2/channels"
         fi
         version_url="${INSTALL_RKE2_CHANNEL_URL}/${INSTALL_RKE2_CHANNEL}"
         case ${DOWNLOADER} in
