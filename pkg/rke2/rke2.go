@@ -64,6 +64,7 @@ type ExtraEnv struct {
 // Valid CIS Profile versions
 const (
 	CISProfile123          = "cis-1.23"
+	CISProfile             = "cis"
 	defaultAuditPolicyFile = "/etc/rancher/rke2/audit-policy.yaml"
 	containerdSock         = "/run/k3s/containerd/containerd.sock"
 	KubeAPIServer          = "kube-apiserver"
@@ -149,6 +150,12 @@ func setup(clx *cli.Context, cfg Config, isServer bool) error {
 		forceRestart = true
 		os.Remove(ForceRestartFile(dataDir))
 	}
+
+	// check for missing db name file on a server running etcd, indicating we're rejoining after cluster reset on a different node
+	if _, err := os.Stat(etcdNameFile(dataDir)); err != nil && os.IsNotExist(err) && isServer && !clx.Bool("disable-etcd") {
+		clusterReset = true
+	}
+
 	disabledItems := map[string]bool{
 		"cloud-controller-manager": !isServer || forceRestart || clx.Bool("disable-cloud-controller"),
 		"etcd":                     !isServer || forceRestart || clx.Bool("disable-etcd"),
@@ -173,6 +180,10 @@ func ForceRestartFile(dataDir string) string {
 	return filepath.Join(dataDir, "force-restart")
 }
 
+func etcdNameFile(dataDir string) string {
+	return filepath.Join(dataDir, "server", "db", "etcd", "name")
+}
+
 func podManifestsDir(dataDir string) string {
 	return filepath.Join(dataDir, "agent", config.DefaultPodManifestPath)
 }
@@ -182,6 +193,8 @@ func binDir(dataDir string) string {
 }
 
 // removeDisabledPods deletes the pod manifests for any disabled pods, as well as ensuring that the containers themselves are terminated.
+//
+// TODO: move this into the podexecutor package, this logic is specific to that executor and should be there instead of here.
 func removeDisabledPods(dataDir, containerRuntimeEndpoint string, disabledItems map[string]bool, clusterReset bool) error {
 	terminatePods := false
 	execPath := binDir(dataDir)
@@ -257,9 +270,13 @@ func removeDisabledPods(dataDir, containerRuntimeEndpoint string, disabledItems 
 
 func isCISMode(clx *cli.Context) bool {
 	profile := clx.String("profile")
-	return profile == CISProfile123
+	if profile == CISProfile123 {
+		logrus.Warn("cis-1.23 profile is deprecated and will be removed in v1.29. Please use cis instead.")
+	}
+	return profile == CISProfile123 || profile == CISProfile
 }
 
+// TODO: move this into the podexecutor package, this logic is specific to that executor and should be there instead of here.
 func startContainerd(_ context.Context, dataDir string, errChan chan error, cmd *exec.Cmd) {
 	args := []string{
 		"-c", filepath.Join(dataDir, "agent", "etc", "containerd", "config.toml"),
@@ -311,6 +328,7 @@ func startContainerd(_ context.Context, dataDir string, errChan chan error, cmd 
 	errChan <- cmd.Run()
 }
 
+// TODO: move this into the podexecutor package, this logic is specific to that executor and should be there instead of here.
 func terminateRunningContainers(ctx context.Context, containerRuntimeEndpoint string, disabledItems map[string]bool, containerdErr chan error) {
 	if containerRuntimeEndpoint == "" {
 		containerRuntimeEndpoint = containerdSock
