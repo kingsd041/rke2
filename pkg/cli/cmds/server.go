@@ -17,7 +17,7 @@ const (
 
 var (
 	DisableItems = []string{"rke2-coredns", "rke2-ingress-nginx", "rke2-metrics-server"}
-	CNIItems     = []string{"calico", "canal", "cilium"}
+	CNIItems     = []string{"calico", "canal", "cilium", "flannel"}
 
 	config = rke2.Config{}
 
@@ -102,8 +102,11 @@ var (
 		"image-credential-provider-config":  copyFlag,
 		"docker":                            dropFlag,
 		"container-runtime-endpoint":        copyFlag,
+		"disable-default-registry-endpoint": copyFlag,
+		"embedded-registry":                 copyFlag,
 		"image-service-endpoint":            dropFlag,
 		"pause-image":                       dropFlag,
+		"default-runtime":                   copyFlag,
 		"private-registry":                  copyFlag,
 		"system-default-registry":           copyFlag,
 		"node-ip":                           copyFlag,
@@ -114,7 +117,6 @@ var (
 		"flannel-cni-conf":                  dropFlag,
 		"flannel-ipv6-masq":                 dropFlag,
 		"flannel-external-ip":               dropFlag,
-		"multi-cluster-cidr":                hideFlag,
 		"egress-selector-mode":              copyFlag,
 		"kubelet-arg":                       copyFlag,
 		"kube-proxy-arg":                    copyFlag,
