@@ -17,7 +17,8 @@ xargs -n1 -t docker image pull --quiet << EOF >> build/images-core.txt
     ${REGISTRY}/rancher/hardened-cluster-autoscaler:v1.8.10-build20240124
     ${REGISTRY}/rancher/hardened-dns-node-cache:1.22.28-build20240125
     ${REGISTRY}/rancher/hardened-etcd:${ETCD_VERSION}-build20230802
-    ${REGISTRY}/rancher/hardened-k8s-metrics-server:v0.6.3-build20231009
+    ${REGISTRY}/rancher/hardened-k8s-metrics-server:v0.7.1-build20240401
+    ${REGISTRY}/rancher/hardened-addon-resizer:1.8.20-build20240410
     ${REGISTRY}/rancher/klipper-helm:v0.8.3-build20240228
     ${REGISTRY}/rancher/klipper-lb:v0.4.7
     ${REGISTRY}/rancher/mirrored-pause:${PAUSE_VERSION}
@@ -35,16 +36,16 @@ EOF
 
 if [ "${GOARCH}" != "s390x" ]; then
 xargs -n1 -t docker image pull --quiet << EOF > build/images-cilium.txt
-    ${REGISTRY}/rancher/mirrored-cilium-certgen:v0.1.9
-    ${REGISTRY}/rancher/mirrored-cilium-cilium:v1.15.3
-    ${REGISTRY}/rancher/mirrored-cilium-cilium-envoy:v1.27.3-99c1c8f42c8de70fc8f6dd594f4a425cd38b6688
-    ${REGISTRY}/rancher/mirrored-cilium-clustermesh-apiserver:v1.15.3
-    ${REGISTRY}/rancher/mirrored-cilium-hubble-relay:v1.15.3
+    ${REGISTRY}/rancher/mirrored-cilium-certgen:v0.1.11
+    ${REGISTRY}/rancher/mirrored-cilium-cilium:v1.15.4
+    ${REGISTRY}/rancher/mirrored-cilium-cilium-envoy:v1.27.4-21905253931655328edaacf3cd16aeda73bbea2f
+    ${REGISTRY}/rancher/mirrored-cilium-clustermesh-apiserver:v1.15.4
+    ${REGISTRY}/rancher/mirrored-cilium-hubble-relay:v1.15.4
     ${REGISTRY}/rancher/mirrored-cilium-hubble-ui:v0.13.0
     ${REGISTRY}/rancher/mirrored-cilium-hubble-ui-backend:v0.13.0
-    ${REGISTRY}/rancher/mirrored-cilium-operator-aws:v1.15.3
-    ${REGISTRY}/rancher/mirrored-cilium-operator-azure:v1.15.3
-    ${REGISTRY}/rancher/mirrored-cilium-operator-generic:v1.15.3
+    ${REGISTRY}/rancher/mirrored-cilium-operator-aws:v1.15.4
+    ${REGISTRY}/rancher/mirrored-cilium-operator-azure:v1.15.4
+    ${REGISTRY}/rancher/mirrored-cilium-operator-generic:v1.15.4
     ${REGISTRY}/rancher/hardened-cni-plugins:v1.4.1-build20240325
 EOF
 
@@ -71,6 +72,7 @@ xargs -n1 -t docker image pull --quiet << EOF > build/images-vsphere.txt
     ${REGISTRY}/rancher/mirrored-sig-storage-livenessprobe:v2.10.0
     ${REGISTRY}/rancher/mirrored-sig-storage-csi-attacher:v4.3.0
     ${REGISTRY}/rancher/mirrored-sig-storage-csi-provisioner:v3.5.0
+    ${REGISTRY}/rancher/mirrored-sig-storage-csi-snapshotter:v6.2.1
 EOF
 fi
 
@@ -89,7 +91,7 @@ xargs -n1 -t docker image pull --quiet << EOF > build/images-multus.txt
 EOF
 
 xargs -n1 -t docker image pull --quiet << EOF > build/images-harvester.txt
-    ${REGISTRY}/rancher/harvester-cloud-provider:v0.2.0
+    ${REGISTRY}/rancher/harvester-cloud-provider:v0.2.1
     ${REGISTRY}/rancher/mirrored-kube-vip-kube-vip-iptables:v0.6.0
     ${REGISTRY}/rancher/harvester-csi-driver:v0.1.6
     ${REGISTRY}/rancher/mirrored-longhornio-csi-node-driver-registrar:v2.3.0
