@@ -1,4 +1,4 @@
-ENV['VAGRANT_NO_PARALLEL'] = 'no'
+ENV['VAGRANT_NO_PARALLEL'] = ENV['E2E_STANDUP_PARALLEL'] ? nil : 'no'
 NODE_ROLES = (ENV['E2E_NODE_ROLES'] ||  ["server-0", "server-1", "server-2"])
 NODE_BOXES = (ENV['E2E_NODE_BOXES'] ||  ['generic/ubuntu2204', 'generic/ubuntu2204', 'generic/ubuntu2204'])
 GITHUB_BRANCH = (ENV['E2E_GITHUB_BRANCH'] || "master")
@@ -17,8 +17,8 @@ def provision(vm, roles, role_num, node_num)
   node_ip = "#{NETWORK_PREFIX}.#{100+node_num}"
   vm.network "private_network", ip: node_ip, netmask: "255.255.255.0"
 
-  scripts_location = Dir.exists?("./scripts") ? "./scripts" : "../scripts" 
-  vagrant_defaults = File.exists?("./vagrantdefaults.rb") ? "./vagrantdefaults.rb" : "../vagrantdefaults.rb"
+  scripts_location = Dir.exist?("./scripts") ? "./scripts" : "../scripts" 
+  vagrant_defaults = File.exist?("./vagrantdefaults.rb") ? "./vagrantdefaults.rb" : "../vagrantdefaults.rb"
   load vagrant_defaults
   
   defaultOSConfigure(vm)

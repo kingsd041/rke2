@@ -41,6 +41,12 @@ type NodeError struct {
 	Err  error
 }
 
+type objIP struct {
+	Name string
+	Ipv4 string
+	Ipv6 string
+}
+
 func (ne *NodeError) Error() string {
 	return fmt.Sprintf("failed creating cluster: %s: %v", ne.Cmd, ne.Err)
 }
@@ -68,30 +74,40 @@ func CountOfStringInSlice(str string, pods []Pod) int {
 }
 
 // genNodeEnvs generates the node and testing environment variables for vagrant up
-func genNodeEnvs(nodeOS string, serverCount, agentCount int) ([]string, []string, string) {
+func genNodeEnvs(nodeOS string, serverCount, agentCount, windowsAgentCount int) ([]string, []string, []string, string) {
 	serverNodeNames := make([]string, serverCount)
 	for i := 0; i < serverCount; i++ {
 		serverNodeNames[i] = "server-" + strconv.Itoa(i)
 	}
+	var agentPrefix string
+	if windowsAgentCount > 0 {
+		agentPrefix = "linux-"
+	}
 	agentNodeNames := make([]string, agentCount)
 	for i := 0; i < agentCount; i++ {
-		agentNodeNames[i] = "agent-" + strconv.Itoa(i)
+		agentNodeNames[i] = agentPrefix + "agent-" + strconv.Itoa(i)
 	}
 
-	nodeRoles := strings.Join(serverNodeNames, " ") + " " + strings.Join(agentNodeNames, " ")
+	windowsAgentNames := make([]string, windowsAgentCount)
+	for i := 0; i < windowsAgentCount; i++ {
+		windowsAgentNames[i] = "windows-agent-" + strconv.Itoa(i)
+	}
+
+	nodeRoles := strings.Join(serverNodeNames, " ") + " " + strings.Join(agentNodeNames, " ") + strings.Join(windowsAgentNames, " ")
 	nodeRoles = strings.TrimSpace(nodeRoles)
 
 	nodeBoxes := strings.Repeat(nodeOS+" ", serverCount+agentCount)
+	nodeBoxes = nodeBoxes + strings.Repeat("jborean93/WindowsServer2022"+" ", windowsAgentCount)
 	nodeBoxes = strings.TrimSpace(nodeBoxes)
 
 	nodeEnvs := fmt.Sprintf(`E2E_NODE_ROLES="%s" E2E_NODE_BOXES="%s"`, nodeRoles, nodeBoxes)
 
-	return serverNodeNames, agentNodeNames, nodeEnvs
+	return serverNodeNames, agentNodeNames, windowsAgentNames, nodeEnvs
 }
 
 func CreateCluster(nodeOS string, serverCount int, agentCount int) ([]string, []string, error) {
 
-	serverNodeNames, agentNodeNames, nodeEnvs := genNodeEnvs(nodeOS, serverCount, agentCount)
+	serverNodeNames, agentNodeNames, _, nodeEnvs := genNodeEnvs(nodeOS, serverCount, agentCount, 0)
 
 	var testOptions string
 	for _, env := range os.Environ() {
@@ -112,6 +128,7 @@ func CreateCluster(nodeOS string, serverCount int, agentCount int) ([]string, []
 	errg, _ := errgroup.WithContext(context.Background())
 	for _, node := range append(serverNodeNames[1:], agentNodeNames...) {
 		cmd := fmt.Sprintf(`%s %s vagrant up %s &>> vagrant.log`, nodeEnvs, testOptions, node)
+		fmt.Println(cmd)
 		errg.Go(func() error {
 			if _, err := RunCommand(cmd); err != nil {
 				return newNodeError(cmd, node, err)
@@ -128,6 +145,25 @@ func CreateCluster(nodeOS string, serverCount int, agentCount int) ([]string, []
 	return serverNodeNames, agentNodeNames, nil
 }
 
+func CreateMixedCluster(nodeOS string, serverCount, linuxAgentCount, windowsAgentCount int) ([]string, []string, []string, error) {
+	serverNodeNames, linuxAgentNames, windowsAgentNames, nodeEnvs := genNodeEnvs(nodeOS, serverCount, linuxAgentCount, windowsAgentCount)
+
+	var testOptions string
+	for _, env := range os.Environ() {
+		if strings.HasPrefix(env, "E2E_") {
+			testOptions += " " + env
+		}
+	}
+
+	cmd := fmt.Sprintf("%s %s vagrant up &> vagrant.log", nodeEnvs, testOptions)
+	fmt.Println(cmd)
+	if _, err := RunCommand(cmd); err != nil {
+		fmt.Println("Error Creating Cluster", err)
+		return nil, nil, nil, err
+	}
+	return serverNodeNames, linuxAgentNames, windowsAgentNames, nil
+}
+
 func scpRKE2Artifacts(nodeNames []string) error {
 	binary := []string{
 		"dist/artifacts/rke2.linux-amd64.tar.gz",
@@ -135,7 +171,6 @@ func scpRKE2Artifacts(nodeNames []string) error {
 	}
 	images := []string{
 		"build/images/rke2-images.linux-amd64.tar.zst",
-		"build/images/rke2-runtime.tar",
 	}
 
 	// vagrant scp doesn't allow coping multiple files at once
@@ -166,10 +201,9 @@ func scpRKE2Artifacts(nodeNames []string) error {
 // The vagrant-scp plugin must be installed for this function to work.
 func CreateLocalCluster(nodeOS string, serverCount, agentCount int) ([]string, []string, error) {
 
-	serverNodeNames, agentNodeNames, nodeEnvs := genNodeEnvs(nodeOS, serverCount, agentCount)
+	serverNodeNames, agentNodeNames, _, nodeEnvs := genNodeEnvs(nodeOS, serverCount, agentCount, 0)
 
 	var testOptions string
-	var cmd string
 
 	for _, env := range os.Environ() {
 		if strings.HasPrefix(env, "E2E_") {
@@ -178,36 +212,18 @@ func CreateLocalCluster(nodeOS string, serverCount, agentCount int) ([]string, [
 	}
 	testOptions += " E2E_RELEASE_VERSION=skip"
 
-	// Provision the first server node. In GitHub Actions, this also imports the VM image into libvirt, which
-	// takes time and can cause the next vagrant up to fail if it is not given enough time to complete.
-	cmd = fmt.Sprintf(`%s %s vagrant up --no-provision %s &> vagrant.log`, nodeEnvs, testOptions, serverNodeNames[0])
+	// Standup all VMs. In GitHub Actions, this also imports the VM image into libvirt, which takes time to complete.
+	cmd := fmt.Sprintf(`%s %s E2E_STANDUP_PARALLEL=true vagrant up --no-provision &> vagrant.log`, nodeEnvs, testOptions)
 	fmt.Println(cmd)
 	if _, err := RunCommand(cmd); err != nil {
 		return nil, nil, newNodeError(cmd, serverNodeNames[0], err)
-	}
-
-	// Bring up the rest of the nodes in parallel
-	errg, _ := errgroup.WithContext(context.Background())
-	for _, node := range append(serverNodeNames[1:], agentNodeNames...) {
-		cmd := fmt.Sprintf(`%s %s vagrant up --no-provision %s &>> vagrant.log`, nodeEnvs, testOptions, node)
-		errg.Go(func() error {
-			if _, err := RunCommand(cmd); err != nil {
-				return newNodeError(cmd, node, err)
-			}
-			return nil
-		})
-		// libVirt/Virtualbox needs some time between provisioning nodes
-		time.Sleep(10 * time.Second)
-	}
-	if err := errg.Wait(); err != nil {
-		return nil, nil, err
 	}
 
 	if err := scpRKE2Artifacts(append(serverNodeNames, agentNodeNames...)); err != nil {
 		return nil, nil, err
 	}
 	// Install RKE2 on all nodes in parallel
-	errg, _ = errgroup.WithContext(context.Background())
+	errg, _ := errgroup.WithContext(context.Background())
 	for _, node := range append(serverNodeNames, agentNodeNames...) {
 		cmd = fmt.Sprintf(`%s %s vagrant provision %s &>> vagrant.log`, nodeEnvs, testOptions, node)
 		errg.Go(func() error {
@@ -223,6 +239,94 @@ func CreateLocalCluster(nodeOS string, serverCount, agentCount int) ([]string, [
 		return nil, nil, err
 	}
 	return serverNodeNames, agentNodeNames, nil
+}
+
+func scpWindowsRKE2Artifacts(nodeNames []string) error {
+	binary := []string{
+		"dist/artifacts/rke2.windows-amd64.tar.gz",
+		"dist/artifacts/sha256sum-windows-amd64.txt",
+		"bin/rke2.exe",
+	}
+	images := []string{
+		"build/images/rke2-images.windows-amd64.tar.zst",
+	}
+
+	// vagrant scp doesn't allow coping multiple files at once
+	// nor does it allow copying as sudo, so we have to copy each file individually
+	// to /temp and then move them to the correct location
+	for _, node := range nodeNames {
+		for _, artifact := range append(binary, images...) {
+			cmd := fmt.Sprintf(`vagrant scp ../../../%s %s:/temp/`, artifact, node)
+			if _, err := RunCommand(cmd); err != nil {
+				return err
+			}
+		}
+		if _, err := RunCmdOnWindowsNode(`mv C:\temp\sha256sum-windows-amd64.txt C:\temp\sha256sum-amd64.txt`, node); err != nil {
+			return err
+		}
+		if _, err := RunCmdOnWindowsNode(`mkdir C:\var\lib\rancher\rke2\agent\images`, node); err != nil {
+			return err
+		}
+
+		for _, image := range images {
+			cmd := fmt.Sprintf("mv C:\\temp\\%s C:\\var\\lib\\rancher\\rke2\\agent\\images\\ ", filepath.Base(image))
+			if _, err := RunCmdOnWindowsNode(cmd, node); err != nil {
+				return err
+			}
+		}
+		if _, err := RunCmdOnWindowsNode(`mkdir C:\usr\local\bin`, node); err != nil {
+			return err
+		}
+		if _, err := RunCmdOnWindowsNode(`mv C:\temp\rke2.exe C:\usr\local\bin\rke2.exe`, node); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func CreateLocalMixedCluster(nodeOS string, serverCount, linuxAgentCount, windowsAgentCount int) ([]string, []string, []string, error) {
+	serverNodeNames, linuxAgentNames, windowsAgentNames, nodeEnvs := genNodeEnvs(nodeOS, serverCount, linuxAgentCount, windowsAgentCount)
+
+	var testOptions string
+	for _, env := range os.Environ() {
+		if strings.HasPrefix(env, "E2E_") {
+			testOptions += " " + env
+		}
+	}
+	testOptions += " E2E_RELEASE_VERSION=skip"
+
+	// Standup all nodes, relying on vagrant-libvirt native parallel provisioning
+	cmd := fmt.Sprintf(`%s %s E2E_STANDUP_PARALLEL=true vagrant up --no-provision &> vagrant.log`, nodeEnvs, testOptions)
+	fmt.Println(cmd)
+	if _, err := RunCommand(cmd); err != nil {
+		return nil, nil, nil, err
+	}
+
+	if err := scpRKE2Artifacts(append(serverNodeNames, linuxAgentNames...)); err != nil {
+		return nil, nil, nil, err
+	}
+	if err := scpWindowsRKE2Artifacts(windowsAgentNames); err != nil {
+		return nil, nil, nil, err
+	}
+	// Install RKE2 on all nodes in parallel
+	errg, _ := errgroup.WithContext(context.Background())
+	allNodes := append(serverNodeNames, linuxAgentNames...)
+	allNodes = append(allNodes, windowsAgentNames...)
+	for _, node := range allNodes {
+		cmd = fmt.Sprintf(`%s %s vagrant provision %s &>> vagrant.log`, nodeEnvs, testOptions, node)
+		errg.Go(func() error {
+			if _, err := RunCommand(cmd); err != nil {
+				return newNodeError(cmd, node, err)
+			}
+			return nil
+		})
+		// RKE2 needs some time between joining nodes to avoid learner issues
+		time.Sleep(20 * time.Second)
+	}
+	if err := errg.Wait(); err != nil {
+		return nil, nil, nil, err
+	}
+	return serverNodeNames, linuxAgentNames, windowsAgentNames, nil
 }
 
 func DeployWorkload(workload string, kubeconfig string) (string, error) {
@@ -320,7 +424,11 @@ func GetVagrantLog(cErr error) string {
 	var nodeErr *NodeError
 	nodeJournal := ""
 	if errors.As(cErr, &nodeErr) {
-		nodeJournal, _ = RunCommand("vagrant ssh " + nodeErr.Node + " -c \"sudo journalctl -u rke2* --no-pager\"")
+		if strings.Contains(nodeErr.Node, "windows-agent") {
+			nodeJournal, _ = RunCmdOnWindowsNode("Get-EventLog -LogName Application -Source 'rke2'", nodeErr.Node)
+		} else {
+			nodeJournal, _ = RunCmdOnNode("sudo journalctl -u rke2* --no-pager", nodeErr.Node)
+		}
 		nodeJournal = "\nNode Journal Logs:\n" + nodeJournal
 	}
 
@@ -415,8 +523,7 @@ func ParsePods(kubeconfig string, print bool) ([]Pod, error) {
 
 // RunCmdOnNode executes a command from within the given node as sudo
 func RunCmdOnNode(cmd string, nodename string) (string, error) {
-	communicator := "ssh"
-	runcmd := "vagrant " + communicator + " -c \"sudo " + cmd + "\" " + nodename
+	runcmd := "vagrant ssh -c \"sudo " + cmd + "\" " + nodename
 	out, err := RunCommand(runcmd)
 	if err != nil {
 		return out, fmt.Errorf("failed to run command: %s on node %s: %s, %v", cmd, nodename, out, err)
@@ -426,8 +533,12 @@ func RunCmdOnNode(cmd string, nodename string) (string, error) {
 
 // RunCmdOnWindowsNode executes a command from within the given windows node
 func RunCmdOnWindowsNode(cmd string, nodename string) (string, error) {
-	runcmd := "vagrant ssh -c 'powershell.exe -Command \""+ cmd + "\"' " + nodename
-	return RunCommand(runcmd)
+	runcmd := "vagrant ssh -c 'powershell.exe -Command \"" + cmd + "\"' " + nodename
+	out, err := RunCommand(runcmd)
+	if err != nil {
+		return out, fmt.Errorf("failed to run windows command: %s : out : %v", runcmd, err)
+	}
+	return out, nil
 }
 
 // RunCommand execute a command on the host
@@ -484,13 +595,43 @@ func UpgradeCluster(serverNodenames []string, agentNodenames []string) error {
 	return nil
 }
 
-// PodIPsUsingLabel returns the IPs of the pods with a label (only single-stack supported)
-func PodIPsUsingLabel(kubeConfigFile string, label string) ([]string, error) {
-	cmd := `kubectl get pods -l ` + label + ` -o=jsonpath='{range .items[*]}{.status.podIPs[*].ip}{" "}{end}' --kubeconfig=` + kubeConfigFile
+// PodIPsUsingLabel returns the IPs of the pods with a label
+func PodIPsUsingLabel(kubeConfigFile string, label string) ([]objIP, error) {
+	cmd := `kubectl get pods -l ` + label + ` -o=jsonpath='{range .items[*]}{.metadata.name}{" "}{.status.podIPs[*].ip}{"\n"}{end}' --kubeconfig=` + kubeConfigFile
+	return getObjIPs(cmd)
+}
+
+// GetPodIPs returns the IPs of all the pods
+func GetPodIPs(kubeConfigFile string) ([]objIP, error) {
+	cmd := `kubectl get pods -A -o=jsonpath='{range .items[*]}{.metadata.name}{" "}{.status.podIPs[*].ip}{"\n"}{end}' --kubeconfig=` + kubeConfigFile
+	return getObjIPs(cmd)
+}
+
+// GetNodeIPs returns the IPs of the nodes
+func GetNodeIPs(kubeConfigFile string) ([]objIP, error) {
+	cmd := `kubectl get nodes -o jsonpath='{range .items[*]}{.metadata.name}{" "}{.status.addresses[?(@.type == "ExternalIP")].address}{"\n"}{end}' --kubeconfig=` + kubeConfigFile
+	return getObjIPs(cmd)
+}
+
+// getObjIPs processes the IPs of the requested objects
+func getObjIPs(cmd string) ([]objIP, error) {
+	var objIPs []objIP
 	res, err := RunCommand(cmd)
 	if err != nil {
 		return nil, err
 	}
+	objs := strings.Split(res, "\n")
+	objs = objs[:len(objs)-1]
 
-	return strings.Split(res, " "), nil
+	for _, obj := range objs {
+		fields := strings.Fields(obj)
+		if len(fields) > 2 {
+			objIPs = append(objIPs, objIP{Name: fields[0], Ipv4: fields[1], Ipv6: fields[2]})
+		} else if len(fields) > 1 {
+			objIPs = append(objIPs, objIP{Name: fields[0], Ipv4: fields[1]})
+		} else {
+			objIPs = append(objIPs, objIP{Name: fields[0]})
+		}
+	}
+	return objIPs, nil
 }

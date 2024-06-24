@@ -38,16 +38,16 @@ RUN curl -sL https://raw.githubusercontent.com/golangci/golangci-lint/master/ins
 WORKDIR /source
 # End Dapper stuff
 
-FROM rancher/hardened-containerd:v1.7.11-k3s2-build20231211-amd64-windows AS containerd
+FROM rancher/hardened-containerd:v1.7.17-k3s1-build20240605-amd64-windows AS containerd
 FROM build as windows-runtime-collect
 ARG KUBERNETES_VERSION=dev
 
 # windows runtime image
 ENV CRICTL_VERSION="v1.29.0"
 ENV CALICO_VERSION="v3.27.3"
-ENV CNI_PLUGIN_VERSION="v1.4.0"
-ENV FLANNEL_VERSION="v0.25.1"
-ENV CNI_FLANNEL_VERSION="v1.4.0-flannel1"
+ENV CNI_PLUGIN_VERSION="v1.4.1"
+ENV FLANNEL_VERSION="v0.25.4"
+ENV CNI_FLANNEL_VERSION="v1.4.1-flannel1"
 
 RUN mkdir -p rancher
 

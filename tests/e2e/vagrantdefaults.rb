@@ -17,7 +17,7 @@ def getInstallType(vm, version, branch)
     return "INSTALL_RKE2_VERSION=#{version}"
   end
   # Grabs the last 5 commit SHA's from the given branch, then purges any commits that do not have a passing CI build
-  scripts_location = Dir.exists?("./scripts") ? "./scripts" : "../scripts" 
+  scripts_location = Dir.exist?("./scripts") ? "./scripts" : "../scripts" 
   vm.provision "shell", path:  scripts_location + "/latest_commit.sh", args: [branch, "/tmp/rke2_commits"]
   return "INSTALL_RKE2_COMMIT=$(head\ -n\ 1\ /tmp/rke2_commits)"
 end
@@ -27,9 +27,12 @@ def cisPrep(vm)
   vm.provision "shell", inline: "printf 'vm.panic_on_oom=0\nvm.overcommit_memory=1\nkernel.panic=10\nkernel.panic_on_oops=1' > /etc/sysctl.d/60-rke2-cis.conf; systemctl restart systemd-sysctl"
 end
 
+# vagrant cannot scp files as root, so we copy manifests to /tmp and then move them to the correct location
 def loadManifests(vm, files)
-  vm.provision "Load extra manifests", type: "shell", inline: "mkdir -p /var/lib/rancher/rke2/server/manifests"
+  vm.provision "shell", inline: "mkdir -p /var/lib/rancher/rke2/server"
+  vm.provision "shell", inline: "mkdir -p -m 777 /tmp/manifests"
   files.each do |file|
-    vm.provision "file", source: file, destination: "/var/lib/rancher/rke2/server/manifests/#{File.basename(file)}"
+    vm.provision "file", source: file, destination: "/tmp/manifests/#{File.basename(file)}"
   end
+  vm.provision "Deploy additional manifests", type: "shell", inline: "mv /tmp/manifests /var/lib/rancher/rke2/server/manifests"
 end

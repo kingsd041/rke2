@@ -272,6 +272,13 @@ function Remove-Containerd () {
     }
 
     if (ctr) {
+        # We create a lockfile to prevent rke2 service from starting kubelet again
+        Create-Lockfile
+        Stop-Process -Name "kubelet"
+        while (-Not(Get-Process -Name "kubelet").HasExited) {
+            Write-LogInfo "Waiting for kubelet process to stop"
+            Start-Sleep -s 5
+        }
         $namespaces = $(Find-Namespaces)
         if (-Not($namespaces)) {
             $ErrorActionPreference = 'SilentlyContinue'
@@ -292,10 +299,48 @@ function Remove-Containerd () {
             foreach ($image in $images) {
                 Remove-Image $ns $image
             }
-            Remove-Namespace $ns
-            # TODO
-            # clean pods with crictl
-            # $CONTAINER_RUNTIME_ENDPOINT = "npipe:\\.\\pipe\\containerd-containerd"
+        }
+
+        # Resources in the namespace take a while to disappear. Snapshots are always the last to go.
+        # For 180s, snapshots are checked and namespace won't be removed until snapshots are gone.
+        # If timeout is reached, we will try removing snapshots directly. If that does not work, we stop trying and user is warned
+        $endTime = (Get-Date).AddSeconds(180)
+        Write-Output "Tasks, containers, images and snapshots are being deleted. This may take a while (timeout 180s)"
+        while ($true) {
+            $namespaces = $(Find-Namespaces)
+            # If there are still namespaces and timeout was not reached
+            if ($namespaces -and (Get-Date) -lt $endTime) {
+                foreach ($ns in $namespaces) {
+                    $snapshots = $(Find-Snapshots $ns)
+                    if ($snapshots) {
+                        Write-Output "Snapshots still present. Retrying namespace deletion in 10s..."
+                        Start-Sleep -Seconds 10
+                    } else {
+                        Remove-Namespace $ns
+                    }
+                }
+            # if there are still namespaces and timeout was reached
+            } elseif ($namespaces -and (Get-Date) -ge $endTime) {
+                Write-Output "Warning! Not all resources in containerd namespace $ns were able to be removed. " `
+                "The uninstallation script might not be able to remove all files under /var/lib/rancher/rke2"
+                break
+            # if there are no namespaces
+            } elseif (-not $namespaces) {
+                Write-Output "All containerd resources have been deleted"
+                break
+            }
+            if ((Get-Date) -ge $endTime) {
+                Write-Output "Time out waiting for containerd resources to be removed. Trying to remove snapshots directly"
+                foreach ($ns in $namespaces) {
+                    $snapshots = $(Find-Snapshots $ns)
+                    foreach ($snapshot in $snapshots) {
+                        Remove-Snapshot $ns $snapshot
+                    }
+                    # We wait for 20 seconds, try to remove the namespaces again and iterate one last time
+                    Start-Sleep -Seconds 20
+		            Remove-Namespace $ns
+                }
+            }
         }
     }
     else {
@@ -307,6 +352,7 @@ function Remove-Containerd () {
 function Find-Namespaces () {
     Invoke-Ctr -cmd "namespace list -q"
 }
+
 function Find-ContainersInNamespace() {
     $namespace = $args[0]
     Invoke-Ctr -cmd "-n $namespace container list -q"
@@ -320,6 +366,15 @@ function Find-Tasks() {
 function Find-Images() {
     $namespace = $args[0]
     Invoke-Ctr -cmd "-n $namespace image list -q"
+}
+
+# The snapshots list does not have option "-q" to list only the keys
+function Find-Snapshots() {
+    $namespace = $args[0]
+    # We skip the first line which is the header KEY
+    Invoke-Ctr -cmd "-n $namespace snapshot list" | Select-Object -Skip 1 | ForEach-Object {
+        ($_ -split '\s+')[0]
+    }
 }
 
 function Remove-Image() {
@@ -343,6 +398,26 @@ function Remove-Container() {
 function Remove-Namespace() {
     $namespace = $args[0]
     Invoke-Ctr -cmd "namespace remove $namespace"
+}
+
+function Remove-Snapshot() {
+    $namespace = $args[0]
+    $snapshot = $args[1]
+    Invoke-Ctr -cmd "-n $namespace snapshot delete $snapshot"
+}
+
+function Create-Lockfile() {
+    # We fetch ctr.exe path and place the lock there
+    $command = Get-Command ctr -ErrorAction SilentlyContinue
+    if ($command) {
+        $executablePath = $command.Source
+        $dataBinDirDirectory = Split-Path -Parent $executablePath
+        $lockFilePath = Join-Path -Path $dataBinDirDirectory -ChildPath "rke2-uninstall.lock"
+        New-Item -ItemType File -Path $lockFilePath -Force
+    } else {
+	# ctr should exist at this point but just in case we add this log
+        Write-Host "ctr.exe not found, container cleanup and RKE2 uninstallation is unlikely to succeed."
+    }
 }
 
 function Invoke-Rke2Uninstall () {

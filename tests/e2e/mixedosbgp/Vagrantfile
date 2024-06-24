@@ -1,4 +1,4 @@
-ENV['VAGRANT_NO_PARALLEL'] = 'no'
+ENV['VAGRANT_NO_PARALLEL'] = ENV['E2E_STANDUP_PARALLEL'] ? nil : 'no'
 NODE_ROLES = (ENV['E2E_NODE_ROLES'] ||
 ["server-0", "linux-agent-0", "windows-agent-0" ])
 NODE_BOXES = (ENV['E2E_NODE_BOXES'] ||
@@ -19,7 +19,7 @@ def provision(vm, role, role_num, node_num)
   vm.network "private_network", ip: node_ip, netmask: "255.255.255.0"
 
   vagrant_defaults = '../vagrantdefaults.rb'
-  load vagrant_defaults if File.exists?(vagrant_defaults)
+  load vagrant_defaults if File.exist?(vagrant_defaults)
 
   defaultOSConfigure(vm)
 
