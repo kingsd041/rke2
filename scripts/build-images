@@ -34,22 +34,22 @@ xargs -n1 -t docker image pull --quiet << EOF > build/images-traefik.txt
 EOF
 
 xargs -n1 -t docker image pull --quiet << EOF > build/images-canal.txt
-    ${REGISTRY}/rancher/hardened-calico:v3.28.0-build20240625
-    ${REGISTRY}/rancher/hardened-flannel:v0.25.4-build20240610
+    ${REGISTRY}/rancher/hardened-calico:v3.28.1-build20240806
+    ${REGISTRY}/rancher/hardened-flannel:v0.25.5-build20240801
 EOF
 
 if [ "${GOARCH}" != "s390x" ]; then
 xargs -n1 -t docker image pull --quiet << EOF > build/images-cilium.txt
-    ${REGISTRY}/rancher/mirrored-cilium-certgen:v0.1.12
-    ${REGISTRY}/rancher/mirrored-cilium-cilium:v1.15.5
-    ${REGISTRY}/rancher/mirrored-cilium-cilium-envoy:v1.28.3-31ec52ec5f2e4d28a8e19a0bfb872fa48cf7a515
-    ${REGISTRY}/rancher/mirrored-cilium-clustermesh-apiserver:v1.15.5
-    ${REGISTRY}/rancher/mirrored-cilium-hubble-relay:v1.15.5
-    ${REGISTRY}/rancher/mirrored-cilium-hubble-ui:v0.13.0
-    ${REGISTRY}/rancher/mirrored-cilium-hubble-ui-backend:v0.13.0
-    ${REGISTRY}/rancher/mirrored-cilium-operator-aws:v1.15.5
-    ${REGISTRY}/rancher/mirrored-cilium-operator-azure:v1.15.5
-    ${REGISTRY}/rancher/mirrored-cilium-operator-generic:v1.15.5
+    ${REGISTRY}/rancher/mirrored-cilium-certgen:v0.2.0
+    ${REGISTRY}/rancher/mirrored-cilium-cilium:v1.16.0
+    ${REGISTRY}/rancher/mirrored-cilium-cilium-envoy:v1.29.7-39a2a56bbd5b3a591f69dbca51d3e30ef97e0e51
+    ${REGISTRY}/rancher/mirrored-cilium-clustermesh-apiserver:v1.16.0
+    ${REGISTRY}/rancher/mirrored-cilium-hubble-relay:v1.16.0
+    ${REGISTRY}/rancher/mirrored-cilium-hubble-ui:v0.13.1
+    ${REGISTRY}/rancher/mirrored-cilium-hubble-ui-backend:v0.13.1
+    ${REGISTRY}/rancher/mirrored-cilium-operator-aws:v1.16.0
+    ${REGISTRY}/rancher/mirrored-cilium-operator-azure:v1.16.0
+    ${REGISTRY}/rancher/mirrored-cilium-operator-generic:v1.16.0
     ${REGISTRY}/rancher/hardened-cni-plugins:v1.4.1-build20240325
 EOF
 
@@ -106,8 +106,8 @@ xargs -n1 -t docker image pull --quiet << EOF > build/images-harvester.txt
 EOF
 
 xargs -n1 -t docker image pull --quiet << EOF > build/images-flannel.txt
-    ${REGISTRY}/rancher/hardened-flannel:v0.25.4-build20240610
-    ${REGISTRY}/rancher/hardened-cni-plugins:v1.4.1-build20240430
+    ${REGISTRY}/rancher/hardened-flannel:v0.25.5-build20240801
+    ${REGISTRY}/rancher/hardened-cni-plugins:v1.5.1-build20240805
 EOF
 fi
 # Continue to provide a legacy airgap archive set with the default CNI images
