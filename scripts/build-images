@@ -23,7 +23,7 @@ xargs -n1 -t docker image pull --quiet << EOF >> build/images-core.txt
     ${REGISTRY}/rancher/klipper-lb:v0.4.9
     ${REGISTRY}/rancher/mirrored-pause:${PAUSE_VERSION}
     ${REGISTRY}/rancher/mirrored-ingress-nginx-kube-webhook-certgen:v1.4.4
-    ${REGISTRY}/rancher/nginx-ingress-controller:v1.10.5-hardened3
+    ${REGISTRY}/rancher/nginx-ingress-controller:v1.10.5-hardened4
     ${REGISTRY}/rancher/rke2-cloud-provider:${CCM_VERSION}
     ${REGISTRY}/rancher/mirrored-sig-storage-snapshot-controller:v8.1.0
     ${REGISTRY}/rancher/mirrored-sig-storage-snapshot-validation-webhook:v8.1.0
@@ -34,8 +34,8 @@ xargs -n1 -t docker image pull --quiet << EOF > build/images-traefik.txt
 EOF
 
 xargs -n1 -t docker image pull --quiet << EOF > build/images-canal.txt
-    ${REGISTRY}/rancher/hardened-calico:v3.28.2-build20241016
-    ${REGISTRY}/rancher/hardened-flannel:v0.25.7-build20241008
+    ${REGISTRY}/rancher/hardened-calico:v3.29.0-build20241104
+    ${REGISTRY}/rancher/hardened-flannel:v0.26.0-build20241024
 EOF
 
 if [ "${GOARCH}" != "s390x" ]; then
