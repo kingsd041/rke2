@@ -4,7 +4,10 @@
 package rke2
 
 import (
+	"bytes"
+	"context"
 	"fmt"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -18,6 +21,7 @@ import (
 	"github.com/rancher/rke2/pkg/cli/defaults"
 	"github.com/rancher/rke2/pkg/images"
 	"github.com/rancher/rke2/pkg/podexecutor"
+	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
 
@@ -85,9 +89,29 @@ func initExecutor(clx *cli.Context, cfg Config, isServer bool) (*podexecutor.Sta
 		return nil, fmt.Errorf("--cloud-provider-config requires --cloud-provider-name to be provided")
 	}
 	if cfg.CloudProviderName != "" {
-		cpConfig = &podexecutor.CloudProviderConfig{
-			Name: cfg.CloudProviderName,
-			Path: cfg.CloudProviderConfig,
+		if cfg.CloudProviderName == "aws" {
+			logrus.Warnf("--cloud-provider-name=aws is deprecated due to removal of the in-tree aws cloud provider; if you want the legacy hostname behavior associated with this flag please use --node-name-from-cloud-provider-metadata")
+			cfg.CloudProviderMetadataHostname = true
+			cfg.CloudProviderName = ""
+		} else {
+			cpConfig = &podexecutor.CloudProviderConfig{
+				Name: cfg.CloudProviderName,
+				Path: cfg.CloudProviderConfig,
+			}
+		}
+	}
+
+	if cfg.CloudProviderMetadataHostname {
+		fqdn := hostnameFromMetadataEndpoint(context.Background())
+		if fqdn == "" {
+			hostFQDN, err := hostnameFQDN()
+			if err != nil {
+				return nil, err
+			}
+			fqdn = hostFQDN
+		}
+		if err := clx.Set("node-name", fqdn); err != nil {
+			return nil, err
 		}
 	}
 
@@ -468,4 +492,17 @@ func parseControlPlaneMounts(cfg Config) (*podexecutor.ControlPlaneMounts, error
 		Etcd:                   cfg.ExtraMounts.Etcd.Value(),
 		CloudControllerManager: cfg.ExtraMounts.CloudControllerManager.Value(),
 	}, nil
+}
+
+func hostnameFQDN() (string, error) {
+	cmd := exec.Command("hostname", "-f")
+
+	var b bytes.Buffer
+	cmd.Stdout = &b
+
+	if err := cmd.Run(); err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(b.String()), nil
 }
