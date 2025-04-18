@@ -112,6 +112,9 @@ setup_env() {
     # --- make sure artifact url prefix has a value
     if [ -z "${INSTALL_RKE2_ARTIFACT_URL}" ]; then
         INSTALL_RKE2_ARTIFACT_URL="https://github.com/rancher/rke2/releases/download"
+        if [ "${INSTALL_RKE2_MIRROR}" = cn ]; then
+            INSTALL_RKE2_ARTIFACT_URL="https://rancher-mirror.rancher.cn/rke2/releases/download"
+        fi
     fi
 
     # --- make sure install channel has a value
@@ -242,19 +245,31 @@ get_release_version() {
     if [ -z "${INSTALL_RKE2_COMMIT}" ] && [ -z "${INSTALL_RKE2_VERSION}" ]; then
         info "finding release for channel ${INSTALL_RKE2_CHANNEL}"
         INSTALL_RKE2_CHANNEL_URL=${INSTALL_RKE2_CHANNEL_URL:-'https://update.rke2.io/v1-release/channels'}
+        if [ "${INSTALL_RKE2_MIRROR}" = cn ]; then
+            INSTALL_RKE2_CHANNEL_URL="https://rancher-mirror.rancher.cn/rke2/channels"
+        fi
         version_url="${INSTALL_RKE2_CHANNEL_URL}/${INSTALL_RKE2_CHANNEL}"
         case ${DOWNLOADER} in
         *curl)
             version=$(${DOWNLOADER} -w "%{url_effective}" -L -s -S "${version_url}" -o /dev/null | sed -e 's|.*/||')
+            if [ "${INSTALL_RKE2_MIRROR}" = cn ]; then
+                version=$(${DOWNLOADER} -s -S "${version_url}")
+            fi
             ;;
         *wget)
             version=$(${DOWNLOADER} -SqO /dev/null "${version_url}" 2>&1 | grep -i Location | sed -e 's|.*/||')
+            if [ "${INSTALL_RKE2_MIRROR}" = cn ]; then
+                version=$(${DOWNLOADER} -qO - "${version_url}")
+            fi
             ;;
         *)
             fatal "Unsupported downloader executable '${DOWNLOADER}'"
             ;;
         esac
         INSTALL_RKE2_VERSION="${version}"
+        if [ "${INSTALL_RKE2_MIRROR}" = cn ]; then
+            INSTALL_RKE2_VERSION=$( echo ${INSTALL_RKE2_VERSION} | sed 's/+/-/g')
+        fi
     fi
 }
 
@@ -300,6 +315,9 @@ download() {
 # download_checksums downloads hash from github url.
 download_checksums() {
     version_urlsafe="$(echo ${INSTALL_RKE2_VERSION} | sed 's/\+/%2B/g')"
+    if [ "${INSTALL_RKE2_MIRROR}" = cn ]; then
+        version_urlsafe="$(echo "${INSTALL_RKE2_VERSION}" | sed 's/+/%2D/g')"
+    fi
     if [ -n "${INSTALL_RKE2_COMMIT}" ]; then
         CHECKSUMS_URL=${STORAGE_URL}/rke2.${SUFFIX}-${INSTALL_RKE2_COMMIT}.tar.gz.sha256sum
     else
@@ -313,6 +331,9 @@ download_checksums() {
 # download_tarball downloads binary from github url.
 download_tarball() {
     version_urlsafe="$(echo ${INSTALL_RKE2_VERSION} | sed 's/\+/%2B/g')"
+    if [ "${INSTALL_RKE2_MIRROR}" = cn ]; then
+        version_urlsafe="$(echo "${INSTALL_RKE2_VERSION}" | sed 's/+/%2D/g')"
+    fi
     if [ -n "${INSTALL_RKE2_COMMIT}" ]; then
         TARBALL_URL=${STORAGE_URL}/rke2.${SUFFIX}-${INSTALL_RKE2_COMMIT}.tar.gz
     else
@@ -696,3 +717,4 @@ do_install() {
 
 do_install
 exit 0
+
