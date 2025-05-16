@@ -13,9 +13,9 @@ EOF
 
 xargs -n1 -t docker image pull --quiet << EOF >> build/images-core.txt
     ${REGISTRY}/rancher/hardened-kubernetes:${KUBERNETES_IMAGE_TAG}
-    ${REGISTRY}/rancher/hardened-coredns:v1.12.1-build20250401
-    ${REGISTRY}/rancher/hardened-cluster-autoscaler:v1.9.0-build20241203
-    ${REGISTRY}/rancher/hardened-dns-node-cache:1.25.0-build20250127
+    ${REGISTRY}/rancher/hardened-coredns:v1.12.1-build20250507
+    ${REGISTRY}/rancher/hardened-cluster-autoscaler:v1.10.2-build20250507
+    ${REGISTRY}/rancher/hardened-dns-node-cache:1.26.0-build20250515
     ${REGISTRY}/rancher/hardened-etcd:${ETCD_VERSION}-build20250411
     ${REGISTRY}/rancher/hardened-k8s-metrics-server:v0.7.2-build20250507
     ${REGISTRY}/rancher/hardened-addon-resizer:1.8.23-build20250507
@@ -23,7 +23,7 @@ xargs -n1 -t docker image pull --quiet << EOF >> build/images-core.txt
     ${REGISTRY}/rancher/klipper-lb:v0.4.13
     ${REGISTRY}/rancher/mirrored-pause:${PAUSE_VERSION}
     ${REGISTRY}/rancher/mirrored-ingress-nginx-kube-webhook-certgen:v1.5.2
-    ${REGISTRY}/rancher/nginx-ingress-controller:v1.12.1-hardened5
+    ${REGISTRY}/rancher/nginx-ingress-controller:v1.12.1-hardened6
     ${REGISTRY}/rancher/rke2-cloud-provider:${CCM_VERSION}
     ${REGISTRY}/rancher/mirrored-sig-storage-snapshot-controller:v8.2.0
 EOF
@@ -33,8 +33,8 @@ xargs -n1 -t docker image pull --quiet << EOF > build/images-traefik.txt
 EOF
 
 xargs -n1 -t docker image pull --quiet << EOF > build/images-canal.txt
-    ${REGISTRY}/rancher/hardened-calico:v3.30.0-build20250513
-    ${REGISTRY}/rancher/hardened-flannel:v0.26.7-build20250509
+    ${REGISTRY}/rancher/hardened-calico:v3.30.0-build20250515
+    ${REGISTRY}/rancher/hardened-flannel:v0.26.7-build20250515
 EOF
 
 if [ "${GOARCH}" != "s390x" ]; then
@@ -97,7 +97,7 @@ xargs -n1 -t docker image pull --quiet << EOF > build/images-harvester.txt
 EOF
 
 xargs -n1 -t docker image pull --quiet << EOF > build/images-flannel.txt
-    ${REGISTRY}/rancher/hardened-flannel:v0.26.7-build20250509
+    ${REGISTRY}/rancher/hardened-flannel:v0.26.7-build20250515
     ${REGISTRY}/rancher/hardened-cni-plugins:v1.7.1-build20250509
 EOF
 fi
