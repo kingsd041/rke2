@@ -115,7 +115,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        dtest: [basics, secretsencryption]
+        dtest: [basics, dualstack, secretsencryption]
     steps:
       - name: "Checkout"
         uses: actions/checkout@v4
@@ -186,7 +186,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        etest: [dnscache, kine, ciliumnokp, multus]
+        etest: [kine, ciliumnokp, multus]
       max-parallel: 3
     steps:
     - name: "Checkout"
