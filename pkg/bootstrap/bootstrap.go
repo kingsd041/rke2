@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -76,16 +77,9 @@ func dirExists(dir string) bool {
 	return false
 }
 
-// Stage extracts binaries and manifests from the runtime image specified in imageConf into the directory
-// at dataDir. It attempts to load the runtime image from a tarball at dataDir/agent/images,
-// falling back to a remote image pull if the image is not found within a tarball.
-// Extraction is skipped if a bin directory for the specified image already exists.
-// Unique image detection is accomplished by hashing the image name and tag, or the image digest,
+// BinDir returns the bin dir for an image by hashing the image name and tag, or the image digest,
 // depending on what the runtime image reference points at.
-// If the bin directory already exists, or content is successfully extracted, the bin directory path is returned.
-func Stage(resolver *images.Resolver, nodeConfig *daemonconfig.Node, cfg cmds.Agent) (string, error) {
-	var img v1.Image
-
+func BinDir(resolver *images.Resolver, cfg cmds.Agent) (string, error) {
 	ref, err := resolver.GetReference(images.Runtime)
 	if err != nil {
 		return "", err
@@ -94,6 +88,28 @@ func Stage(resolver *images.Resolver, nodeConfig *daemonconfig.Node, cfg cmds.Ag
 	refDigest, err := releaseRefDigest(ref)
 	if err != nil {
 		return "", err
+	}
+
+	return binDirForDigest(cfg.DataDir, refDigest), nil
+}
+
+// Stage extracts binaries and manifests from the runtime image specified in imageConf into the directory
+// at dataDir. It attempts to load the runtime image from a tarball at dataDir/agent/images,
+// falling back to a remote image pull if the image is not found within a tarball.
+// Extraction is skipped if a bin directory for the specified image already exists.
+// Unique image detection is accomplished by hashing the image name and tag, or the image digest,
+// depending on what the runtime image reference points at.
+func Stage(ctx context.Context, resolver *images.Resolver, nodeConfig *daemonconfig.Node, cfg cmds.Agent) error {
+	var img v1.Image
+
+	ref, err := resolver.GetReference(images.Runtime)
+	if err != nil {
+		return err
+	}
+
+	refDigest, err := releaseRefDigest(ref)
+	if err != nil {
+		return err
 	}
 
 	refBinDir := binDirForDigest(cfg.DataDir, refDigest)
@@ -106,7 +122,7 @@ func Stage(resolver *images.Resolver, nodeConfig *daemonconfig.Node, cfg cmds.Ag
 		// Try to use configured runtime image from an airgap tarball
 		img, err = preloadBootstrapFromRuntime(imagesDir, resolver)
 		if err != nil {
-			return "", err
+			return err
 		}
 
 		// If we didn't find the requested image in a tarball, pull it from the remote registry.
@@ -114,7 +130,7 @@ func Stage(resolver *images.Resolver, nodeConfig *daemonconfig.Node, cfg cmds.Ag
 		if img == nil {
 			registry, err := registries.GetPrivateRegistries(cfg.PrivateRegistry)
 			if err != nil {
-				return "", pkgerrors.WithMessagef(err, "failed to load private registry configuration from %s", cfg.PrivateRegistry)
+				return pkgerrors.WithMessagef(err, "failed to load private registry configuration from %s", cfg.PrivateRegistry)
 			}
 			// Override registry config with version provided by (and potentially modified by) k3s agent setup
 			registry.Registry = nodeConfig.AgentConfig.Registry
@@ -123,7 +139,7 @@ func Stage(resolver *images.Resolver, nodeConfig *daemonconfig.Node, cfg cmds.Ag
 			if agent.ImageCredProvAvailable(&nodeConfig.AgentConfig) {
 				plugins, err := plugin.RegisterCredentialProviderPlugins(nodeConfig.AgentConfig.ImageCredProvConfig, nodeConfig.AgentConfig.ImageCredProvBinDir)
 				if err != nil {
-					return "", err
+					return err
 				}
 				registry.DefaultKeychain = plugins
 			} else {
@@ -133,9 +149,9 @@ func Stage(resolver *images.Resolver, nodeConfig *daemonconfig.Node, cfg cmds.Ag
 			logrus.Infof("Pulling runtime image %s", ref.Name())
 			// Make sure that the runtime image is also loaded into containerd
 			images.Pull(imagesDir, images.Runtime, ref)
-			img, err = registry.Image(ref, remote.WithPlatform(v1.Platform{Architecture: runtime.GOARCH, OS: runtime.GOOS}))
+			img, err = registry.Image(ref, remote.WithPlatform(v1.Platform{Architecture: runtime.GOARCH, OS: runtime.GOOS}), remote.WithContext(ctx))
 			if err != nil {
-				return "", pkgerrors.WithMessagef(err, "failed to get runtime image %s", ref.Name())
+				return pkgerrors.WithMessagef(err, "failed to get runtime image %s", ref.Name())
 			}
 		}
 
@@ -145,11 +161,11 @@ func Stage(resolver *images.Resolver, nodeConfig *daemonconfig.Node, cfg cmds.Ag
 			"/charts": refChartsDir,
 		}
 		if err := extract.ExtractDirs(img, extractPaths); err != nil {
-			return "", pkgerrors.WithMessage(err, "failed to extract runtime image")
+			return pkgerrors.WithMessage(err, "failed to extract runtime image")
 		}
 		// Ensure correct permissions on bin dir
 		if err := os.Chmod(refBinDir, 0755); err != nil {
-			return "", err
+			return err
 		}
 	}
 
@@ -157,7 +173,7 @@ func Stage(resolver *images.Resolver, nodeConfig *daemonconfig.Node, cfg cmds.Ag
 	_ = os.RemoveAll(symlinkBinDir(cfg.DataDir))
 	_ = os.Symlink(refBinDir, symlinkBinDir(cfg.DataDir))
 
-	return refBinDir, nil
+	return nil
 }
 
 // UpdateManifests copies the staged manifests into the server's manifests dir, and applies

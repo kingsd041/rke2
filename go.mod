@@ -6,7 +6,7 @@ replace (
 	github.com/Microsoft/hcsshim => github.com/Microsoft/hcsshim v0.12.9
 	github.com/Mirantis/cri-dockerd => github.com/k3s-io/cri-dockerd v0.3.19-k3s3
 	github.com/cloudnativelabs/kube-router/v2 => github.com/k3s-io/kube-router/v2 v2.6.1-k3s3
-	github.com/containerd/containerd/v2 => github.com/k3s-io/containerd/v2 v2.1.4-k3s2
+	github.com/containerd/containerd/v2 => github.com/k3s-io/containerd/v2 v2.1.5-k3s1
 	github.com/containerd/stargz-snapshotter => github.com/k3s-io/stargz-snapshotter v0.17.0-k3s1
 	github.com/docker/distribution => github.com/docker/distribution v2.8.3+incompatible
 	github.com/docker/docker => github.com/docker/docker v25.0.8+incompatible
@@ -315,7 +315,7 @@ require (
 	github.com/quic-go/webtransport-go v0.9.0 // indirect
 	github.com/rancher/dynamiclistener v0.7.1 // indirect
 	github.com/rancher/lasso v0.2.3 // indirect
-	github.com/rancher/remotedialer v0.5.1-0.20250827012652-e6b68fd83a6b // indirect
+	github.com/rancher/remotedialer v0.6.0-rc.1.0.20250916111157-f160aa32568d // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/rootless-containers/rootlesskit v1.1.1 // indirect
 	github.com/rs/xid v1.6.0 // indirect
