@@ -116,6 +116,9 @@ users:
 `))
 )
 
+// explicit interface check
+var _ CNIPlugin = &Calico{}
+
 type Calico struct {
 	CNICfg     *CalicoConfig
 	KubeClient *kubernetes.Clientset
@@ -270,14 +273,14 @@ func (c *Calico) Start(ctx context.Context) error {
 	if err := wait.PollUntilContextTimeout(ctx, 5*time.Second, 5*time.Minute, true, func(ctx context.Context) (bool, error) {
 		_, err := c.KubeClient.CoreV1().Nodes().Get(ctx, c.CNICfg.Hostname, metav1.GetOptions{})
 		if err != nil {
-			logrus.WithError(err).Warningf("Calico can't start because it can't find node, retrying %s", c.CNICfg.Hostname)
+			logrus.WithError(err).Warningf("Calico can't start because it can't find node %s, retrying...", c.CNICfg.Hostname)
 			return false, nil
 		}
 
 		logrus.Infof("Node %s registered. Calico can start", c.CNICfg.Hostname)
 
 		if err := startCalico(ctx, c.CNICfg, logPath); err != nil {
-			logrus.Errorf("Calico exited: %v. Retrying", err)
+			logrus.Errorf("Calico startup failed: %v, retrying...", err)
 			return false, nil
 		}
 		return true, nil
@@ -285,10 +288,8 @@ func (c *Calico) Start(ctx context.Context) error {
 		return err
 	}
 
-	go startFelix(ctx, c.CNICfg, logPath)
-	if c.CNICfg.OverlayEncap == "windows-bgp" {
-		go startConfd(ctx, c.CNICfg, logPath)
-	}
+	go runFelix(ctx, c.CNICfg, logPath)
+	go runConfd(ctx, c.CNICfg, logPath)
 
 	// Delete policies in case calico network is being reused
 	policies, _ := hcsshim.HNSListPolicyListRequest()
@@ -296,9 +297,7 @@ func (c *Calico) Start(ctx context.Context) error {
 		policy.Delete()
 	}
 
-	logrus.Info("Calico started correctly")
-
-	return nil
+	return reserveCalicoVIP(ctx, c.CNICfg)
 }
 
 // generateCalicoNetworks creates the overlay networks for internode networking
@@ -418,9 +417,12 @@ func findCalicoInterface(nodeV4 *opv1.NodeAddressAutodetection) (IPAutoDetection
 	return
 }
 
-// startConfd starts the confd service (for BGP)
-func startConfd(ctx context.Context, config *CalicoConfig, logPath string) {
-	outputFile := logging.GetLogger(filepath.Join(logPath, "confd.log"), 50)
+// runConfd starts the confd service (for BGP)
+func runConfd(ctx context.Context, config *CalicoConfig, logPath string) {
+	logPath = filepath.Join(logPath, "confd.log")
+	if config.OverlayEncap != "windows-bgp" {
+		return
+	}
 
 	specificEnvs := []string{
 		fmt.Sprintf("PATH=%s", os.Getenv("PATH")),
@@ -430,21 +432,32 @@ func startConfd(ctx context.Context, config *CalicoConfig, logPath string) {
 		"-confd",
 		fmt.Sprintf("-confd-confdir=%s", filepath.Join(config.CNIBinDir, "confd")),
 	}
-
 	logrus.Infof("Confd Envs: %s", append(generateGeneralCalicoEnvs(config), specificEnvs...))
-	cmd := exec.CommandContext(ctx, "calico-node.exe", args...)
-	cmd.Env = append(generateGeneralCalicoEnvs(config), specificEnvs...)
-	cmd.Stdout = outputFile
-	cmd.Stderr = outputFile
-	_ = os.Chdir(filepath.Join(config.CNIBinDir, "confd"))
-	_ = cmd.Run()
-	logrus.Error("Confd exited")
+
+	for {
+		logrus.Infof("Confd logging to %s", logPath)
+		outputFile := logging.GetLogger(logPath, 50)
+		cmd := exec.CommandContext(ctx, "calico-node.exe", args...)
+		cmd.Env = append(generateGeneralCalicoEnvs(config), specificEnvs...)
+		cmd.Stdout = outputFile
+		cmd.Stderr = outputFile
+		os.Chdir(filepath.Join(config.CNIBinDir, "confd"))
+		err := cmd.Run()
+		if ctx.Err() != nil {
+			return
+		}
+		if eerr, ok := err.(*exec.ExitError); ok && eerr.ProcessState.ExitCode() == 129 {
+			logrus.Infof("Confd exited for config reload; restarting...")
+		}
+		logrus.WithError(err).Info("Confd exited, restarting...")
+		outputFile.Close()
+		time.Sleep(time.Second)
+	}
 }
 
-// startFelix starts the felix service
-func startFelix(ctx context.Context, config *CalicoConfig, logPath string) {
-	outputFile := logging.GetLogger(filepath.Join(logPath, "felix.log"), 50)
-
+// runFelix starts the felix service
+func runFelix(ctx context.Context, config *CalicoConfig, logPath string) {
+	logPath = filepath.Join(logPath, "felix.log")
 	specificEnvs := []string{
 		fmt.Sprintf("FELIX_FELIXHOSTNAME=%s", config.Hostname),
 		fmt.Sprintf("FELIX_VXLANVNI=%s", config.VxlanVNI),
@@ -463,17 +476,32 @@ func startFelix(ctx context.Context, config *CalicoConfig, logPath string) {
 	}
 
 	logrus.Infof("Felix Envs: %s", append(generateGeneralCalicoEnvs(config), specificEnvs...))
-	cmd := exec.CommandContext(ctx, "calico-node.exe", args...)
-	cmd.Env = append(generateGeneralCalicoEnvs(config), specificEnvs...)
-	cmd.Stdout = outputFile
-	cmd.Stderr = outputFile
-	_ = cmd.Run()
-	logrus.Error("Felix exited")
+
+	for {
+		logrus.Infof("Felix logging to %s", logPath)
+		outputFile := logging.GetLogger(logPath, 50)
+		cmd := exec.CommandContext(ctx, "calico-node.exe", args...)
+		cmd.Env = append(generateGeneralCalicoEnvs(config), specificEnvs...)
+		cmd.Stdout = outputFile
+		cmd.Stderr = outputFile
+		err := cmd.Run()
+		if ctx.Err() != nil {
+			return
+		}
+		if eerr, ok := err.(*exec.ExitError); ok && eerr.ProcessState.ExitCode() == 129 {
+			logrus.Infof("Felix exited for config reload; restarting...")
+		}
+		logrus.WithError(err).Info("Felix exited, restarting...")
+		outputFile.Close()
+	}
 }
 
-// startCalico starts the calico service
+// startCalico runs the calico non-privileged start-up routine.
+// This is expected to exit with 0 exit code when the CNI is ready to operate.
 func startCalico(ctx context.Context, config *CalicoConfig, logPath string) error {
-	outputFile := logging.GetLogger(filepath.Join(logPath, "calico-node.log"), 50)
+	logPath = filepath.Join(logPath, "calico-node.log")
+	outputFile := logging.GetLogger(logPath, 50)
+	defer outputFile.Close()
 
 	specificEnvs := []string{
 		fmt.Sprintf("CALICO_NODENAME_FILE=%s", config.NodeNameFile),
@@ -494,14 +522,12 @@ func startCalico(ctx context.Context, config *CalicoConfig, logPath string) erro
 		"-startup",
 	}
 	logrus.Infof("Calico Envs: %s", append(generateGeneralCalicoEnvs(config), specificEnvs...))
+	logrus.Infof("Calico logging to %s", logPath)
 	cmd := exec.CommandContext(ctx, "calico-node.exe", args...)
 	cmd.Env = append(generateGeneralCalicoEnvs(config), specificEnvs...)
 	cmd.Stdout = outputFile
 	cmd.Stderr = outputFile
-	if err := cmd.Run(); err != nil {
-		return err
-	}
-	return nil
+	return cmd.Run()
 }
 
 func generateGeneralCalicoEnvs(config *CalicoConfig) []string {
@@ -516,24 +542,19 @@ func generateGeneralCalicoEnvs(config *CalicoConfig) []string {
 	}
 }
 
-// ReserveSourceVip reserves a source VIP for kube-proxy
-func (c *Calico) ReserveSourceVip(ctx context.Context) (string, error) {
-	var vip string
-
-	if err := wait.PollUntilContextTimeout(ctx, 5*time.Second, 5*time.Minute, true, func(ctx context.Context) (bool, error) {
+// reserveCalicoVIP reserves a source VIP for kube-proxy
+// If successful, the VIP is stored to config.CNICommonConfig.VIPAddress.
+func reserveCalicoVIP(ctx context.Context, config *CalicoConfig) error {
+	return wait.PollUntilContextTimeout(ctx, 5*time.Second, 5*time.Minute, true, func(ctx context.Context) (bool, error) {
 		// calico-node is creating an endpoint named Calico_ep for this purpose
 		endpoint, err := hcsshim.GetHNSEndpointByName("Calico_ep")
 		if err != nil {
-			logrus.WithError(err).Warning("can't find Calico_ep HNS endpoint, retrying")
+			logrus.WithError(err).Warning("Can't find Calico_ep HNS endpoint, retrying")
 			return false, nil
 		}
-		vip = endpoint.IPAddress.String()
+		config.CNICommonConfig.VIPAddress = endpoint.IPAddress.String()
 		return true, nil
-	}); err != nil {
-		return "", err
-	}
-
-	return vip, nil
+	})
 }
 
 // Get latest stored reboot

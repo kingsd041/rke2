@@ -111,6 +111,9 @@ users:
 `))
 )
 
+// explicit interface check
+var _ CNIPlugin = &Flannel{}
+
 type Flannel struct {
 	CNICfg     *FlannelConfig
 	KubeClient *kubernetes.Clientset
@@ -260,7 +263,7 @@ func (f *Flannel) createKubeConfigAndClient(ctx context.Context, restConfig *res
 
 // Start waits for the node to be ready and starts flannel
 func (f *Flannel) Start(ctx context.Context) error {
-	logPath := filepath.Join(f.CNICfg.ConfigPath, "logs", "flanneld.log")
+	logPath := filepath.Join(f.CNICfg.ConfigPath, "logs")
 
 	// Wait for the node to be registered in the cluster
 	if err := wait.PollUntilContextTimeout(ctx, 3*time.Second, 5*time.Minute, true, func(ctx context.Context) (bool, error) {
@@ -277,13 +280,13 @@ func (f *Flannel) Start(ctx context.Context) error {
 	}
 
 	go startFlannel(ctx, f.CNICfg, logPath)
-
-	return nil
+	return reserveFlannelVIP(ctx, f.CNICfg)
 }
 
-// startFlannel calls the flanneld binary with the correct config parameters and envs
+// startFlannel calls the flanneld binary with the correct config parameters and envs.
+// This will not return until the context is cancelled.
 func startFlannel(ctx context.Context, config *FlannelConfig, logPath string) {
-	outputFile := logging.GetLogger(logPath, 50)
+	logPath = filepath.Join(logPath, "flanneld.log")
 
 	specificEnvs := []string{
 		fmt.Sprintf("NODE_NAME=%s", config.Hostname),
@@ -300,31 +303,39 @@ func startFlannel(ctx context.Context, config *FlannelConfig, logPath string) {
 	}
 
 	logrus.Infof("Flanneld Envs: %s and args: %v", specificEnvs, args)
-	cmd := exec.CommandContext(ctx, "flanneld.exe", args...)
-	cmd.Env = specificEnvs
-	cmd.Stdout = outputFile
-	cmd.Stderr = outputFile
-	if err := cmd.Run(); err != nil {
-		logrus.Errorf("Flanneld has an error: %v. Check %s for extra information", err, logPath)
+	for {
+		logrus.Infof("Flanneld logging to %s", logPath)
+		outputFile := logging.GetLogger(logPath, 50)
+		cmd := exec.CommandContext(ctx, "flanneld.exe", args...)
+		cmd.Env = specificEnvs
+		cmd.Stdout = outputFile
+		cmd.Stderr = outputFile
+		err := cmd.Run()
+		if ctx.Err() != nil {
+			return
+		}
+		logrus.WithError(err).Info("Flanneld exited, restarting...")
+		outputFile.Close()
+		time.Sleep(time.Second)
 	}
-	logrus.Error("Flanneld exited")
 }
 
-// ReserveSourceVip reserves an IP that will be used as source VIP by kube-proxy. It uses host-local CNI plugin to reserve the IP
-func (f *Flannel) ReserveSourceVip(ctx context.Context) (string, error) {
+// reserveFlannelVIP reserves an IP that will be used as source VIP by kube-proxy. It uses host-local CNI plugin to reserve the IP.
+// If successful, the VIP is stored to config.CNICommonConfig.VIPAddress.
+func reserveFlannelVIP(ctx context.Context, config *FlannelConfig) error {
 	var network *hcsshim.HNSNetwork
 	var err error
 
 	logrus.Info("Reserving an IP on flannel HNS network for kube-proxy source vip")
 	if err := wait.PollUntilContextTimeout(ctx, 10*time.Second, 5*time.Minute, true, func(ctx context.Context) (bool, error) {
-		network, err = hcsshim.GetHNSNetworkByName(f.CNICfg.OverlayNetName)
+		network, err = hcsshim.GetHNSNetworkByName(config.OverlayNetName)
 		if err != nil || network == nil {
-			logrus.Debugf("can't find flannel HNS network, retrying %s", f.CNICfg.OverlayNetName)
+			logrus.Debugf("Can't find flannel HNS network, retrying %s", config.OverlayNetName)
 			return false, nil
 		}
 
 		if network.ManagementIP == "" {
-			logrus.Debugf("wait for flannel HNS network management IP, retrying %s", f.CNICfg.OverlayNetName)
+			logrus.Debugf("Wait for flannel HNS network management IP, retrying %s", config.OverlayNetName)
 			return false, nil
 		}
 
@@ -334,28 +345,27 @@ func (f *Flannel) ReserveSourceVip(ctx context.Context) (string, error) {
 		}
 		return false, nil
 	}); err != nil {
-		return "", err
+		return err
 	}
 
 	// Check if the source vip was already reserved using host-local library
-	hostlocalStore, err := hostlocaldisk.New(f.CNICfg.OverlayNetName, hostLocalDataDir)
+	hostlocalStore, err := hostlocaldisk.New(config.OverlayNetName, hostLocalDataDir)
 	if err != nil {
-		return "", fmt.Errorf("failed to create host-local store: %w", err)
+		return fmt.Errorf("failed to create host-local store: %w", err)
 	}
 	ips := hostlocalStore.GetByID(hostlocalContainerID, hostlocalInterfaceName)
 	if len(ips) > 0 {
 		logrus.Infof("Source VIP for kube-proxy was already reserved %v", ips)
-		return strings.TrimSpace(strings.Split(ips[0].String(), "/")[0]), nil
-	}
+		config.CNICommonConfig.VIPAddress = strings.TrimSpace(strings.Split(ips[0].String(), "/")[0])
+	} else {
+		logrus.Info("No source VIP for kube-proxy reserved. Creating one")
+		subnet := network.Subnets[0].AddressPrefix
 
-	logrus.Info("No source VIP for kube-proxy reserved. Creating one")
-	subnet := network.Subnets[0].AddressPrefix
+		logrus.Debugf("host-local will use the following subnet: %v to reserve the sourceIP", subnet)
 
-	logrus.Debugf("host-local will use the following subnet: %v to reserve the sourceIP", subnet)
-
-	configData := `{
+		configData := `{
 		"cniVersion": "1.0.0",
-		"name": "` + f.CNICfg.OverlayNetName + `",
+		"name": "` + config.OverlayNetName + `",
 		"ipam": {
 			"type": "host-local",
 			"ranges": [[{"subnet":"` + subnet + `"}]],
@@ -363,34 +373,36 @@ func (f *Flannel) ReserveSourceVip(ctx context.Context) (string, error) {
 		}
 	}`
 
-	cmd := exec.Command("host-local.exe")
-	cmd.Env = append(os.Environ(),
-		"CNI_COMMAND=ADD",
-		"CNI_CONTAINERID="+hostlocalContainerID,
-		"CNI_NETNS=kube-proxy",
-		"CNI_IFNAME="+hostlocalInterfaceName,
-		"CNI_PATH="+f.CNICfg.CNIBinDir,
-	)
+		cmd := exec.Command("host-local.exe")
+		cmd.Env = append(os.Environ(),
+			"CNI_COMMAND=ADD",
+			"CNI_CONTAINERID="+hostlocalContainerID,
+			"CNI_NETNS=kube-proxy",
+			"CNI_IFNAME="+hostlocalInterfaceName,
+			"CNI_PATH="+config.CNIBinDir,
+		)
 
-	cmd.Stdin = strings.NewReader(configData)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		logrus.WithError(err).Warning("Failed to execute host-local.exe")
-		logrus.Infof("This is the output: %v", strings.TrimSpace(string(out)))
-		return "", err
+		cmd.Stdin = strings.NewReader(configData)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			logrus.WithError(err).Warning("Failed to execute host-local.exe")
+			logrus.Infof("This is the output: %v", strings.TrimSpace(string(out)))
+			return err
+		}
+
+		var sourceVipResp SourceVipResponse
+		err = json.Unmarshal(out, &sourceVipResp)
+		if err != nil {
+			logrus.WithError(err).Warning("Failed to unmarshal sourceVip response")
+			logrus.Infof("This is the error: %v", err)
+			return err
+		}
+
+		if len(sourceVipResp.IPs) > 0 {
+			config.CNICommonConfig.VIPAddress = strings.TrimSpace(strings.Split(sourceVipResp.IPs[0].Address, "/")[0])
+		} else {
+			return errors.New("no source vip reserved")
+		}
 	}
-
-	var sourceVipResp SourceVipResponse
-	err = json.Unmarshal(out, &sourceVipResp)
-	if err != nil {
-		logrus.WithError(err).Warning("Failed to unmarshal sourceVip response")
-		logrus.Infof("This is the error: %v", err)
-		return "", err
-	}
-
-	if len(sourceVipResp.IPs) > 0 {
-		return strings.TrimSpace(strings.Split(sourceVipResp.IPs[0].Address, "/")[0]), nil
-	}
-
-	return "", errors.New("no source vip reserved")
+	return nil
 }
