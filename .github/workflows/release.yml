@@ -55,7 +55,7 @@ jobs:
       run: |
         dapper -f Dockerfile --target dapper make scan-images
     - name: Upload Scan Results
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: release-trivy-scan
         path: trivy_scan_report.txt
@@ -348,7 +348,7 @@ jobs:
           curl -sL https://releases.rancher.com/dapper/latest/dapper-$(uname -s)-$(uname -m) > /usr/local/bin/dapper
           chmod +x /usr/local/bin/dapper
       - name: setup ecm-distro-tools
-        uses: rancher/ecm-distro-tools@8ce282c30487ffc951af77e7de723a87a790e0c6 # v0.60.1
+        uses: rancher/ecm-distro-tools@df74c04bbc0176c3a2a04ebd8f6620c5a23229f6 # v0.61.0
       - name: Make artifacts directory
         run: |
           mkdir -p dist/artifacts
