@@ -1,7 +1,7 @@
 ARG KUBERNETES_VERSION=dev
 
 # Base image for common build tools
-FROM rancher/hardened-build-base:v1.25.5b1 AS base
+FROM rancher/hardened-build-base:v1.25.5b2 AS base
 ARG BUILDARCH
 ENV ARCH $BUILDARCH
 RUN set -x && \
@@ -57,7 +57,7 @@ RUN set -x && \
     	apk add --no-cache rpm-dev; \
     fi
 
-RUN GOCR_VERSION="v0.20.2" && \
+RUN GOCR_VERSION="v0.20.7" && \
     if [ "${ARCH}" = "arm64" ]; then \
         wget https://github.com/google/go-containerregistry/releases/download/${GOCR_VERSION}/go-containerregistry_Linux_arm64.tar.gz && \
         tar -zxvf go-containerregistry_Linux_arm64.tar.gz && \
@@ -110,7 +110,7 @@ RUN rm -vf /charts/*.sh /charts/*.md /charts/chart_versions.yaml
 # This image includes any host level programs that we might need. All binaries
 # must be placed in bin/ of the file image and subdirectories of bin/ will be flattened during installation.
 # This means bin/foo/bar will become bin/bar when rke2 installs this to the host
-FROM rancher/hardened-containerd:v2.1.5-k3s1-build20251210 AS containerd
+FROM rancher/hardened-containerd:v2.1.5-k3s1-build20260109 AS containerd
 FROM rancher/hardened-crictl:v1.35.0-build20251219 AS crictl
 FROM rancher/hardened-runc:v1.4.0-build20251210 AS runc
 FROM rancher/hardened-kubernetes:v1.35.0-rke2r1-build20251218 AS kubernetes
