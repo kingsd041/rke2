@@ -20,30 +20,30 @@ PULL_CMD="${PULL_CMD:-echo}"
 # When packaging images.txt, we use docker as rke2-runtime only exists locally
 PULL_CMD_CORE="${PULL_CMD_CORE:-docker image pull --quiet}"
 
-INGRESS_NGINX_TAG=v1.14.3-hardened3
+INGRESS_NGINX_TAG=v1.14.4-hardened1
 if [ "${REGISTRY}" != "docker.io" ]; then
-    INGRESS_NGINX_TAG=v1.14.3-prime5
+    INGRESS_NGINX_TAG=v1.14.4-prime1
 fi
 
 xargs -n1 -t $PULL_CMD_CORE << EOF >> $BUILD_DIR/images-core.txt
     ${REGISTRY}/rancher/hardened-kubernetes:${KUBERNETES_IMAGE_TAG}
-    ${REGISTRY}/rancher/hardened-coredns:v1.14.1-build20260206
+    ${REGISTRY}/rancher/hardened-coredns:v1.14.2-build20260310
     ${REGISTRY}/rancher/hardened-cluster-autoscaler:v1.10.3-build20260206
-    ${REGISTRY}/rancher/hardened-dns-node-cache:1.26.7-build20260206
+    ${REGISTRY}/rancher/hardened-dns-node-cache:1.26.7-build20260310
     ${REGISTRY}/rancher/hardened-etcd:${ETCD_VERSION}-build20260227
     ${REGISTRY}/rancher/hardened-k8s-metrics-server:v0.8.1-build20260206
     ${REGISTRY}/rancher/hardened-addon-resizer:1.8.23-build20260206
     ${REGISTRY}/rancher/klipper-helm:${KLIPPERHELM_VERSION}
     ${REGISTRY}/rancher/klipper-lb:v0.4.14
     ${REGISTRY}/rancher/mirrored-pause:${PAUSE_VERSION}
-    ${REGISTRY}/rancher/kube-webhook-certgen:v1.6.7
+    ${REGISTRY}/rancher/kube-webhook-certgen:v1.6.8
     ${REGISTRY}/rancher/nginx-ingress-controller:${INGRESS_NGINX_TAG}
     ${REGISTRY}/rancher/rke2-cloud-provider:${CCM_VERSION}
     ${REGISTRY}/rancher/hardened-snapshot-controller:v8.4.0-build20260205
 EOF
 
 xargs -n1 -t $PULL_CMD << EOF > $BUILD_DIR/images-traefik.txt
-    ${REGISTRY}/rancher/hardened-traefik:v3.6.9-build20260226
+    ${REGISTRY}/rancher/hardened-traefik:v3.6.10-build20260309
 EOF
 
 xargs -n1 -t $PULL_CMD_CORE << EOF > $BUILD_DIR/images-canal.txt
@@ -67,22 +67,22 @@ xargs -n1 -t $PULL_CMD << EOF > $BUILD_DIR/images-cilium.txt
 EOF
 
 xargs -n1 -t $PULL_CMD << EOF > $BUILD_DIR/images-calico.txt
-    ${REGISTRY}/rancher/mirrored-calico-operator:v1.40.3
-    ${REGISTRY}/rancher/mirrored-calico-ctl:v3.31.3
-    ${REGISTRY}/rancher/mirrored-calico-kube-controllers:v3.31.3
-    ${REGISTRY}/rancher/mirrored-calico-typha:v3.31.3
-    ${REGISTRY}/rancher/mirrored-calico-node:v3.31.3
-    ${REGISTRY}/rancher/mirrored-calico-pod2daemon-flexvol:v3.31.3
-    ${REGISTRY}/rancher/mirrored-calico-cni:v3.31.3
-    ${REGISTRY}/rancher/mirrored-calico-apiserver:v3.31.3
-    ${REGISTRY}/rancher/mirrored-calico-csi:v3.31.3
-    ${REGISTRY}/rancher/mirrored-calico-node-driver-registrar:v3.31.3
-    ${REGISTRY}/rancher/mirrored-calico-envoy-gateway:v3.31.3
-    ${REGISTRY}/rancher/mirrored-calico-envoy-proxy:v3.31.3
-    ${REGISTRY}/rancher/mirrored-calico-envoy-ratelimit:v3.31.3
-    ${REGISTRY}/rancher/mirrored-calico-goldmane:v3.31.3
-    ${REGISTRY}/rancher/mirrored-calico-whisker:v3.31.3
-    ${REGISTRY}/rancher/mirrored-calico-whisker-backend:v3.31.3
+    ${REGISTRY}/rancher/mirrored-calico-operator:v1.40.7
+    ${REGISTRY}/rancher/mirrored-calico-ctl:v3.31.4
+    ${REGISTRY}/rancher/mirrored-calico-kube-controllers:v3.31.4
+    ${REGISTRY}/rancher/mirrored-calico-typha:v3.31.4
+    ${REGISTRY}/rancher/mirrored-calico-node:v3.31.4
+    ${REGISTRY}/rancher/mirrored-calico-pod2daemon-flexvol:v3.31.4
+    ${REGISTRY}/rancher/mirrored-calico-cni:v3.31.4
+    ${REGISTRY}/rancher/mirrored-calico-apiserver:v3.31.4
+    ${REGISTRY}/rancher/mirrored-calico-csi:v3.31.4
+    ${REGISTRY}/rancher/mirrored-calico-node-driver-registrar:v3.31.4
+    ${REGISTRY}/rancher/mirrored-calico-envoy-gateway:v3.31.4
+    ${REGISTRY}/rancher/mirrored-calico-envoy-proxy:v3.31.4
+    ${REGISTRY}/rancher/mirrored-calico-envoy-ratelimit:v3.31.4
+    ${REGISTRY}/rancher/mirrored-calico-goldmane:v3.31.4
+    ${REGISTRY}/rancher/mirrored-calico-whisker:v3.31.4
+    ${REGISTRY}/rancher/mirrored-calico-whisker-backend:v3.31.4
 EOF
 
 if [ "${GOARCH}" != "arm64" ]; then
@@ -100,11 +100,11 @@ EOF
 fi
 
 xargs -n1 -t $PULL_CMD << EOF > $BUILD_DIR/images-multus.txt
-    ${REGISTRY}/rancher/hardened-multus-cni:v4.2.3-build20260206
-    ${REGISTRY}/rancher/hardened-multus-thick:v4.2.3-build20260206
-    ${REGISTRY}/rancher/hardened-multus-dynamic-networks-controller:v0.3.7-build20260207
-    ${REGISTRY}/rancher/hardened-cni-plugins:v1.9.0-build20260206
-    ${REGISTRY}/rancher/hardened-whereabouts:v0.9.2-build20260206
+    ${REGISTRY}/rancher/hardened-multus-cni:v4.2.4-build20260310
+    ${REGISTRY}/rancher/hardened-multus-thick:v4.2.4-build20260310
+    ${REGISTRY}/rancher/hardened-multus-dynamic-networks-controller:v0.3.7-build20260310
+    ${REGISTRY}/rancher/hardened-cni-plugins:v1.9.0-build20260309
+    ${REGISTRY}/rancher/hardened-whereabouts:v0.9.3-build20260310
     ${REGISTRY}/rancher/mirrored-library-busybox:1.36.1
 EOF
 
