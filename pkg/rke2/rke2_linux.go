@@ -6,7 +6,6 @@ package rke2
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -19,8 +18,8 @@ import (
 	"github.com/k3s-io/k3s/pkg/cluster/managed"
 	"github.com/k3s-io/k3s/pkg/daemons/executor"
 	"github.com/k3s-io/k3s/pkg/etcd"
+	"github.com/k3s-io/k3s/pkg/util/errors"
 	"github.com/k3s-io/kine/pkg/util"
-	pkgerrors "github.com/pkg/errors"
 	rke2cli "github.com/rancher/rke2/pkg/cli"
 	"github.com/rancher/rke2/pkg/cli/defaults"
 	"github.com/rancher/rke2/pkg/executor/staticpod"
@@ -55,18 +54,20 @@ func initExecutor(clx *cli.Context, cfg rke2cli.Config, isServer bool) (executor
 }
 
 func initStaticPodExecutor(clx *cli.Context, cfg rke2cli.Config, isServer bool) (executor.Executor, error) {
-	// Verify if the user want to use kine as the datastore
-	// and then remove the etcd from the static pod
 	externalDatabase := false
-	if cmds.ServerConfig.DatastoreEndpoint != "" || (clx.Bool("disable-etcd") && !clx.IsSet("server")) {
+	disableEtcd := clx.Bool("disable-etcd")
+	// if using an external database (--datastore-endpoint) or kine (--disable-etcd without --server), disable cluster-init
+	// to prevent starting etcd. We must also set DisableETCD off in config when using kine, or K3s code will complain
+	// "invalid flag use; --server is required with --disable-etcd" since we are overloading the meaning of that flag here in RKE2.
+	if cmds.ServerConfig.DatastoreEndpoint != "" || (disableEtcd && !clx.IsSet("server")) {
 		cmds.ServerConfig.DisableETCD = false
 		cmds.ServerConfig.ClusterInit = false
-
+		disableEtcd = true
 		// When the datastore sets a etcd endpoint, rke2 does not need kine with tls and changes
 		// in the --etcd-servers inside staticpod using externalDatabase
 		scheme, _ := util.SchemeAndAddress(cmds.ServerConfig.DatastoreEndpoint)
 		switch scheme {
-		case "http", "https":
+		case "http", "https", "unix", "unixs":
 		default:
 			cmds.ServerConfig.KineTLS = true
 			externalDatabase = true
@@ -144,7 +145,7 @@ func initStaticPodExecutor(clx *cli.Context, cfg rke2cli.Config, isServer bool) 
 
 	templateConfig, err := podtemplate.NewConfigFromCLI(dataDir, cfg)
 	if err != nil {
-		return nil, pkgerrors.WithMessage(err, "failed to parse pod template config")
+		return nil, errors.WithMessage(err, "failed to parse pod template config")
 	}
 
 	// Adding PSAs
@@ -187,7 +188,7 @@ func initStaticPodExecutor(clx *cli.Context, cfg rke2cli.Config, isServer bool) 
 		PSAConfigFile:     podSecurityConfigFile,
 		KubeletPath:       cfg.KubeletPath,
 		RuntimeEndpoint:   containerRuntimeEndpoint,
-		DisableETCD:       clx.Bool("disable-etcd"),
+		DisableETCD:       disableEtcd,
 		ExternalDatabase:  externalDatabase,
 		IsServer:          isServer,
 		Prime:             clx.Bool("prime"),

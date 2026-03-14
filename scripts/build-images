@@ -34,7 +34,7 @@ xargs -n1 -t $PULL_CMD_CORE << EOF >> $BUILD_DIR/images-core.txt
     ${REGISTRY}/rancher/hardened-k8s-metrics-server:v0.8.1-build20260206
     ${REGISTRY}/rancher/hardened-addon-resizer:1.8.23-build20260206
     ${REGISTRY}/rancher/klipper-helm:${KLIPPERHELM_VERSION}
-    ${REGISTRY}/rancher/klipper-lb:v0.4.14
+    ${REGISTRY}/rancher/klipper-lb:v0.4.15
     ${REGISTRY}/rancher/mirrored-pause:${PAUSE_VERSION}
     ${REGISTRY}/rancher/kube-webhook-certgen:v1.6.8
     ${REGISTRY}/rancher/nginx-ingress-controller:${INGRESS_NGINX_TAG}
@@ -47,8 +47,8 @@ xargs -n1 -t $PULL_CMD << EOF > $BUILD_DIR/images-traefik.txt
 EOF
 
 xargs -n1 -t $PULL_CMD_CORE << EOF > $BUILD_DIR/images-canal.txt
-    ${REGISTRY}/rancher/hardened-calico:v3.31.3-build20260206
-    ${REGISTRY}/rancher/hardened-flannel:v0.28.1-build20260206
+    ${REGISTRY}/rancher/hardened-calico:v3.31.4-build20260310
+    ${REGISTRY}/rancher/hardened-flannel:v0.28.1-build20260313
 EOF
 
 if [ "${GOARCH}" != "s390x" ]; then
@@ -63,7 +63,7 @@ xargs -n1 -t $PULL_CMD << EOF > $BUILD_DIR/images-cilium.txt
     ${REGISTRY}/rancher/mirrored-cilium-operator-aws:v1.19.1
     ${REGISTRY}/rancher/mirrored-cilium-operator-azure:v1.19.1
     ${REGISTRY}/rancher/mirrored-cilium-operator-generic:v1.19.1
-    ${REGISTRY}/rancher/hardened-cni-plugins:v1.9.0-build20260206
+    ${REGISTRY}/rancher/hardened-cni-plugins:v1.9.0-build20260309
 EOF
 
 xargs -n1 -t $PULL_CMD << EOF > $BUILD_DIR/images-calico.txt
